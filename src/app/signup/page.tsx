@@ -11,6 +11,7 @@ import AvatarCircles from '@/components/magicui/avatar-circles'
 import { AnimatedSubscribeButton } from '@/components/magicui/animated-subscribe-button'
 import SparklesText from '@/components/magicui/sparkles-text'
 import Iphone15Pro from '@/components/magicui/iphone-15-pro'
+import AnimatedGridPattern from '@/components/magicui/animated-grid-pattern'
 
 export default function SignUpPage() {
   const [username, setUsername] = useState('')
@@ -74,27 +75,28 @@ export default function SignUpPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-700 to-red-700 flex items-center justify-center p-4">
-      <div className="relative">
+    <div className="min-h-screen bg-gradient-to-br from-purple-700 to-red-700 flex items-center justify-center p-4 relative overflow-hidden">
+      <AnimatedGridPattern />
+      <div className="relative z-10">
         <Iphone15Pro width={433} height={882} />
         <div className="absolute top-0 left-0 right-0 bottom-0 flex items-center justify-center">
-          <div className="bg-white rounded-xl p-8 shadow-2xl w-full max-w-md" style={{ maxWidth: '90%', maxHeight: '90%', overflow: 'auto' }}>
+          <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 shadow-2xl w-full max-w-[320px] max-h-[750px] overflow-auto">
             <AvatarCircles
-              numPeople={488}  // Adjust this number as needed
+              numPeople={488}
               avatarUrls={avatarUrls}
-              className="mb-6 justify-center"
+              className="mb-4 justify-center"
             />
             <SparklesText
               text="Sign Up for PLAYSTAKE"
-              className="text-3xl font-bold text-center text-purple-900 mb-6"
+              className="text-2xl font-bold text-center text-purple-900 mb-4"
             />
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="flex flex-col items-center mb-4">
-                <div className="w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden mb-2">
+            <form onSubmit={handleSubmit} className="space-y-3">
+              <div className="flex flex-col items-center mb-3">
+                <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden mb-2">
                   {avatar ? (
-                    <Image src={avatar} alt="Profile" width={128} height={128} className="object-cover" />
+                    <Image src={avatar} alt="Profile" width={96} height={96} className="object-cover" />
                   ) : (
-                    <svg className="w-16 h-16 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                    <svg className="w-12 h-12 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                     </svg>
                   )}
@@ -103,7 +105,7 @@ export default function SignUpPage() {
                   type="button"
                   variant="secondary"
                   onClick={() => fileInputRef.current?.click()}
-                  className="text-sm"
+                  className="text-xs"
                 >
                   Upload Avatar
                 </Button>
@@ -190,13 +192,18 @@ export default function SignUpPage() {
               </div>
               {error && <p className="text-red-500 text-sm">{error}</p>}
               <div className="flex justify-center">
-                <Button type="submit" className="bg-purple-600 hover:bg-purple-700 text-white">
+                <Button 
+                  type="submit" 
+                  variant="primary" 
+                  size="medium"
+                  className="bg-purple-600 hover:bg-purple-700 text-white"
+                >
                   Sign Up
                 </Button>
               </div>
             </form>
-            <div className="mt-4 text-center">
-              <Link href="/login" className="text-sm text-purple-600 hover:text-purple-500">
+            <div className="mt-3 text-center">
+              <Link href="/login" className="text-xs text-purple-600 hover:text-purple-500">
                 Already have an account? Log in
               </Link>
             </div>

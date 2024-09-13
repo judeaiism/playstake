@@ -4,8 +4,7 @@ import { useState, ChangeEvent, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-// Remove this line:
-// import { Input } from '@/components/ui/input'
+import GridPattern from '@/components/magicui/grid-pattern'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -25,8 +24,18 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-700 to-red-700 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl p-8 shadow-2xl w-full max-w-md">
+    <div className="min-h-screen bg-gradient-to-br from-purple-700 to-red-700 flex items-center justify-center p-4 relative overflow-hidden">
+      <GridPattern
+        width={40}
+        height={40}
+        className="absolute inset-0 opacity-20"
+        squares={[
+          [1, 2],
+          [3, 4],
+          [5, 6],
+        ]}
+      />
+      <div className="bg-white rounded-xl p-8 shadow-2xl w-full max-w-md relative z-10">
         <h1 className="text-3xl font-bold text-center text-purple-900 mb-6">Login to PLAYSTAKE</h1>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

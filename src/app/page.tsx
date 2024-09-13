@@ -5,6 +5,7 @@ import { AnimatedList } from '@/components/magicui/animated-list'
 import ShinyButton from '@/components/magicui/shiny-button'
 import { VelocityScroll } from '@/components/magicui/scroll-based-velocity'
 import NumberTicker from '@/components/magicui/number-ticker'
+import { MagicCard } from '@/components/magicui/magic-card'
 
 export default function Home() {
   return (
@@ -24,16 +25,16 @@ export default function Home() {
         </header>
 
         <main className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <section className="bg-blue-600 rounded-xl p-6 shadow-lg">
+          <MagicCard className="bg-blue-600 rounded-xl p-6 shadow-lg">
             <h2 className="text-2xl font-bold mb-4">Match and Play</h2>
             <div className="space-y-4">
               <Button className="w-full bg-yellow-500 text-purple-900 hover:bg-yellow-400">Find Opponent</Button>
               <Button className="w-full bg-yellow-500 text-purple-900 hover:bg-yellow-400">Schedule Match</Button>
               <Button className="w-full bg-yellow-500 text-purple-900 hover:bg-yellow-400">Start Gaming Session</Button>
             </div>
-          </section>
+          </MagicCard>
 
-          <section className="bg-purple-600 rounded-xl p-6 shadow-lg h-[300px] flex flex-col">
+          <MagicCard className="bg-purple-600 rounded-xl p-6 shadow-lg h-[300px] flex flex-col">
             <h2 className="text-2xl font-bold mb-4">Recent Matches</h2>
             <div className="flex-grow overflow-hidden">
               <AnimatedList delay={2000} className="h-full">
@@ -54,9 +55,9 @@ export default function Home() {
                 ))}
               </AnimatedList>
             </div>
-          </section>
+          </MagicCard>
 
-          <section className="bg-green-700 rounded-xl p-6 shadow-lg">
+          <MagicCard className="bg-green-700 rounded-xl p-6 shadow-lg">
             <h2 className="text-2xl font-bold mb-4">Leaderboard</h2>
             <div className="space-y-2">
               {[
@@ -81,7 +82,7 @@ export default function Home() {
                 </div>
               ))}
             </div>
-          </section>
+          </MagicCard>
         </main>
 
         <footer className="mt-12 text-center">
