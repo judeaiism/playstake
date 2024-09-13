@@ -1,5 +1,5 @@
 {
-  "name": "psn-playstake",
+  "name": "playstake",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -10,10 +10,13 @@
   },
   "dependencies": {
     "@heroicons/react": "^2.1.5",
+    "@radix-ui/react-icons": "^1.3.0",
+    "@radix-ui/react-label": "^2.1.0",
     "@tanstack/react-query": "^5.56.2",
     "axios": "^1.7.7",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
+    "cobe": "^0.6.3",
     "firebase": "^10.13.1",
     "framer-motion": "^11.5.4",
     "lucide-react": "^0.441.0",
@@ -22,6 +25,7 @@
     "react-dom": "^18",
     "react-hook-form": "^7.53.0",
     "react-hot-toast": "^2.4.1",
+    "react-spring": "^9.7.4",
     "tailwind-merge": "^2.5.2",
     "tailwindcss-animate": "^1.0.7",
     "zustand": "^4.5.5"

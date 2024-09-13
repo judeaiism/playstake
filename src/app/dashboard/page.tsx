@@ -31,7 +31,7 @@ export default function Dashboard() {
   return (
     <div className="container mx-auto p-4 space-y-6 bg-gradient-to-br from-purple-900 via-red-900 to-yellow-900 min-h-screen text-white">
       <header className="flex justify-between items-center mb-6">
-        <h1 className="text-4xl font-bold text-yellow-400 animate-pulse">PSN Dashboard</h1>
+        <h1 className="text-4xl font-bold text-yellow-400 animate-pulse">PLAYSTAKE Dashboard</h1>
         <Avatar className="h-12 w-12 ring-4 ring-yellow-400 ring-offset-4 ring-offset-red-900">
           <AvatarImage src="/placeholder-avatar.jpg" alt="User" />
           <AvatarFallback>JD</AvatarFallback>
