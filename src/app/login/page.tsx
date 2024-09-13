@@ -16,7 +16,7 @@ export default function LoginPage() {
     e.preventDefault()
     // TODO: Implement login logic here
     console.log('Login attempt with:', { email, password })
-    // For now, we'll just redirect to the dashboard
+    // Redirect to the dashboard
     router.push('/dashboard')
   }
 
