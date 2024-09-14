@@ -1,57 +1,38 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { User } from '../types/user'
+import { useRouter } from 'next/navigation'
+import { onAuthStateChanged } from 'firebase/auth'
+import { doc, getDoc } from 'firebase/firestore'
+import { auth, db } from '@/lib/firebase'
 
 export function useAuth() {
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const router = useRouter()
 
   useEffect(() => {
-    // Check if user is logged in
-    const checkAuth = async () => {
-      try {
-        // Replace this with your actual authentication check
-        const response = await fetch('/api/auth/user')
-        if (response.ok) {
-          const userData = await response.json()
-          setUser(userData)
-        } else {
-          setUser(null)
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid))
+          if (userDoc.exists()) {
+            setUser({ ...firebaseUser, ...userDoc.data() })
+          } else {
+            console.error('User document does not exist')
+          }
+        } catch (error) {
+          console.error('Error fetching user data:', error)
         }
-      } catch (error) {
-        console.error('Auth check failed:', error)
+      } else {
         setUser(null)
-      } finally {
-        setLoading(false)
+        router.push('/login')
       }
-    }
+      setLoading(false)
+    })
 
-    checkAuth()
-  }, [])
+    return () => unsubscribe()
+  }, [router])
 
-  const login = async (email: string, password: string) => {
-    // Implement login logic here
-    // For example:
-    // const response = await fetch('/api/auth/login', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({ email, password }),
-    // })
-    // if (response.ok) {
-    //   const userData = await response.json()
-    //   setUser(userData)
-    //   return true
-    // }
-    // return false
-  }
-
-  const logout = async () => {
-    // Implement logout logic here
-    // For example:
-    // await fetch('/api/auth/logout', { method: 'POST' })
-    // setUser(null)
-  }
-
-  return { user, loading, login, logout }
+  return { user, loading }
 }

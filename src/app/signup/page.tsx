@@ -12,6 +12,10 @@ import { AnimatedSubscribeButton } from '@/components/magicui/animated-subscribe
 import SparklesText from '@/components/magicui/sparkles-text'
 import Iphone15Pro from '@/components/magicui/iphone-15-pro'
 import AnimatedGridPattern from '@/components/magicui/animated-grid-pattern'
+import { createUserWithEmailAndPassword } from 'firebase/auth'
+import { doc, setDoc } from 'firebase/firestore'
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
+import { auth, db, storage } from '@/lib/firebase'
 
 export default function SignUpPage() {
   const [username, setUsername] = useState('')
@@ -25,34 +29,76 @@ export default function SignUpPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
   const [isAgeConfirmed, setIsAgeConfirmed] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError('')
+    setIsLoading(true)
 
     if (password !== confirmPassword) {
       setError('Passwords do not match')
+      setIsLoading(false)
       return
     }
 
     if (age === null) {
       setError('Please confirm your age')
+      setIsLoading(false)
       return
     }
 
     try {
-      // TODO: Implement registration logic here
-      console.log('Registration attempt with:', { username, email, password, psnName, avatar, age })
+      // Create user with email and password
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password)
+      const user = userCredential.user
+
+      // Upload avatar if selected
+      let avatarUrl = null
+      if (avatar) {
+        try {
+          const avatarRef = ref(storage, `avatars/${user.uid}/profile.jpg`)
+          const avatarBlob = await fetch(avatar).then(r => r.blob())
+          await uploadBytes(avatarRef, avatarBlob)
+          avatarUrl = await getDownloadURL(avatarRef)
+        } catch (avatarError) {
+          console.error('Failed to upload avatar:', avatarError)
+          // Optionally set an error message, but continue with user creation
+          setError('Failed to upload avatar, but account created successfully.')
+        }
+      }
+
+      // Save user data to Firestore
+      await setDoc(doc(db, 'users', user.uid), {
+        username,
+        email,
+        psnName,
+        avatarUrl,
+        age,
+        createdAt: new Date().toISOString()
+      })
+
       // Redirect to the dashboard
       router.push('/dashboard')
     } catch (err) {
-      setError('Failed to register. Please try again.')
+      console.error(err)
+      if (err instanceof Error) {
+        setError(`Failed to register: ${err.message}`)
+      } else {
+        setError('An unexpected error occurred. Please try again.')
+      }
+    } finally {
+      setIsLoading(false)
     }
   }
 
   const handleAvatarUpload = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        setError('Avatar file size should be less than 5MB')
+        return
+      }
       const reader = new FileReader()
       reader.onloadend = () => {
         setAvatar(reader.result as string)
@@ -107,7 +153,7 @@ export default function SignUpPage() {
                   onClick={() => fileInputRef.current?.click()}
                   className="text-xs"
                 >
-                  Upload Avatar
+                  {avatar ? 'Change Avatar' : 'Upload Avatar'}
                 </Button>
                 <input
                   type="file"
@@ -116,6 +162,7 @@ export default function SignUpPage() {
                   accept="image/*"
                   className="hidden"
                 />
+                {avatar && <p className="text-xs text-green-500 mt-1">Avatar selected</p>}
               </div>
               <div>
                 <Label htmlFor="username">Username</Label>
@@ -197,8 +244,9 @@ export default function SignUpPage() {
                   variant="primary" 
                   size="medium"
                   className="bg-purple-600 hover:bg-purple-700 text-white"
+                  disabled={isLoading}
                 >
-                  Sign Up
+                  {isLoading ? 'Signing Up...' : 'Sign Up'}
                 </Button>
               </div>
             </form>

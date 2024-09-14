@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "firebase:deploy": "firebase deploy",
+    "firebase:emulators": "firebase emulators:start"
   },
   "dependencies": {
     "@heroicons/react": "^2.1.5",

@@ -1,6 +1,11 @@
 'use client'
 
+import { useAuth } from '@/hooks/useAuth'
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { onAuthStateChanged } from 'firebase/auth'
+import { doc, getDoc } from 'firebase/firestore'
+import { auth, db } from '@/lib/firebase'
 import FlickeringGrid from "@/components/magicui/flickering-grid"
 import BoxReveal from "@/components/magicui/box-reveal"
 import { Button } from "@/components/ui/button"
@@ -59,6 +64,16 @@ const profileFormSchema = z.object({
 })
 
 export default function Dashboard() {
+  const { user, loading } = useAuth()
+
+  if (loading) {
+    return <div>Loading...</div>
+  }
+
+  if (!user) {
+    return null
+  }
+
   const [flashWin, setFlashWin] = useState(false)
   const [balance, setBalance] = useState(1000)
   const [searchQuery, setSearchQuery] = useState('')
@@ -145,7 +160,7 @@ export default function Dashboard() {
         <BoxReveal width="100%" boxColor="#FFD700">
           <header className="flex justify-between items-center mb-6">
             <SparklesText
-              text="PLAYSTAKE Dashboard"
+              text={`Welcome, ${user.username || 'User'}!`}
               className="text-4xl font-bold text-yellow-400"
               colors={{ first: "#FFD700", second: "#FFA500" }}
               sparklesCount={15}
