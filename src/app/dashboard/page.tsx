@@ -3,9 +3,9 @@
 import { useAuth } from '@/hooks/useAuth'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { onAuthStateChanged } from 'firebase/auth'
-import { doc, getDoc } from 'firebase/firestore'
-import { auth, db } from '@/lib/firebase'
+import { doc, getDoc, setDoc, updateDoc, DocumentData } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
+import { Progress } from "@/components/ui/progress"
 import FlickeringGrid from "@/components/magicui/flickering-grid"
 import BoxReveal from "@/components/magicui/box-reveal"
 import { Button } from "@/components/ui/button"
@@ -41,15 +41,15 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import {
   Form,
-  FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
+  FormControl,
   FormMessage,
 } from "@/components/ui/form"
 import Link from 'next/link'
 import SparklesText from "@/components/magicui/sparkles-text"
+import Image from 'next/image'
 
 const profileFormSchema = z.object({
   username: z.string().min(2, {
@@ -64,15 +64,11 @@ const profileFormSchema = z.object({
 })
 
 export default function Dashboard() {
-  const { user, loading } = useAuth()
-
-  if (loading) {
-    return <div>Loading...</div>
-  }
-
-  if (!user) {
-    return null
-  }
+  const { user, loading: authLoading, signOut } = useAuth()
+  const router = useRouter()
+  const [userData, setUserData] = useState<DocumentData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [progress, setProgress] = useState(0)
 
   const [flashWin, setFlashWin] = useState(false)
   const [balance, setBalance] = useState(1000)
@@ -81,15 +77,73 @@ export default function Dashboard() {
   const [isEditing, setIsEditing] = useState(false)
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [avatarPreview, setAvatarPreview] = useState("https://github.com/shadcn.png")
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [avatarError, setAvatarError] = useState(false)
 
   const form = useForm<z.infer<typeof profileFormSchema>>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
-      username: "John Doe",
+      username: "",
       psnName: "",
-      email: "johndoe@example.com",
+      email: "",
     },
   })
+
+  useEffect(() => {
+    if (!authLoading) {
+      if (!user) {
+        router.push('/login')
+      } else {
+        const fetchUserData = async () => {
+          try {
+            setLoading(true)
+            setProgress(25)
+            const userDocRef = doc(db, 'users', user.uid)
+            const userDocSnap = await getDoc(userDocRef)
+            
+            setProgress(50)
+            if (userDocSnap.exists()) {
+              const data = userDocSnap.data()
+              setUserData(data)
+              form.reset({
+                username: data.username || "",
+                psnName: data.psnName || "",
+                email: data.email || "",
+              })
+            } else {
+              const newUserData = {
+                email: user.email,
+                username: user.displayName || user.email?.split('@')[0] || 'User',
+                psnName: "",
+                createdAt: new Date().toISOString(),
+              }
+              await setDoc(userDocRef, newUserData)
+              setUserData(newUserData)
+              form.reset({
+                username: newUserData.username,
+                psnName: newUserData.psnName,
+                email: newUserData.email || "",
+              })
+            }
+            setProgress(75)
+          } catch (err) {
+            console.error('Error fetching/creating user data:', err)
+          } finally {
+            setLoading(false)
+            setProgress(100)
+          }
+        }
+
+        fetchUserData()
+      }
+    }
+  }, [user, authLoading, router, form])
+
+  useEffect(() => {
+    if (userData?.avatarUrl) {
+      setAvatarUrl(userData.avatarUrl)
+    }
+  }, [userData])
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -123,11 +177,36 @@ export default function Dashboard() {
     },
   ]
 
-  function onSubmit(values: z.infer<typeof profileFormSchema>) {
-    // TODO: Update profile logic here
-    console.log(values)
-    console.log("Avatar file:", avatarFile)
-    setIsEditing(false)
+  const handleEditProfile = () => {
+    if (isEditing) {
+      // Save profile
+      form.handleSubmit(onSubmit)()
+    } else {
+      // Start editing
+      setIsEditing(true)
+    }
+  }
+
+  async function onSubmit(values: z.infer<typeof profileFormSchema>) {
+    if (!user) {
+      console.error('User is not authenticated')
+      return
+    }
+
+    try {
+      const userDocRef = doc(db, 'users', user.uid)
+      await updateDoc(userDocRef, {
+        username: values.username,
+        psnName: values.psnName,
+        email: values.email,
+      })
+      setUserData(prevData => ({ ...prevData, ...values }))
+      setIsEditing(false)
+      // Optionally, show a success message
+    } catch (error) {
+      console.error('Error updating profile:', error)
+      // Optionally, show an error message
+    }
   }
 
   const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -148,6 +227,160 @@ export default function Dashboard() {
     // For example, you could open a modal or navigate to a search page
   }
 
+  const handleSignOut = async () => {
+    try {
+      await signOut()
+      router.push('/login')
+    } catch (error) {
+      console.error('Error signing out:', error)
+      // Optionally, you can show an error message to the user
+    }
+  }
+
+  if (authLoading || loading) {
+    return (
+      <div className="flex flex-col justify-center items-center h-screen bg-gradient-to-br from-purple-700 to-red-700">
+        <div className="w-64 mb-4">
+          <Progress value={progress} className="h-2 bg-yellow-200" />
+        </div>
+        <div className="text-white text-lg">Loading your dashboard...</div>
+      </div>
+    )
+  }
+
+  if (!user || !userData) {
+    router.push('/login')
+    return null
+  }
+
+  // Update the EditableProfileForm to use userData
+  function EditableProfileForm({
+    form,
+    onSubmit,
+    avatarPreview,
+    handleAvatarChange,
+    handleEditProfile,
+    isEditing,
+  }: {
+    form: ReturnType<typeof useForm<z.infer<typeof profileFormSchema>>>
+    onSubmit: (values: z.infer<typeof profileFormSchema>) => void
+    avatarPreview: string
+    handleAvatarChange: (event: React.ChangeEvent<HTMLInputElement>) => void
+    handleEditProfile: () => void
+    isEditing: boolean
+  }) {
+    return (
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <div className="flex flex-col items-center space-y-2">
+            <Avatar className="h-20 w-20">
+              {avatarUrl ? (
+                <Image
+                  src={avatarUrl}
+                  alt="Profile"
+                  width={80}
+                  height={80}
+                  onError={() => setAvatarError(true)}
+                  className="object-cover w-full h-full"
+                />
+              ) : (
+                <AvatarFallback>{userData?.username?.[0] || 'U'}</AvatarFallback>
+              )}
+            </Avatar>
+            <Input
+              type="file"
+              accept="image/*"
+              onChange={handleAvatarChange}
+              className="w-full bg-purple-700 text-white border-purple-600"
+              id="avatar-upload"
+              name="avatar-upload"
+              autoComplete="off"
+            />
+          </div>
+          <FormField
+            control={form.control}
+            name="username"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-yellow-400" htmlFor="username">Username</FormLabel>
+                <FormControl>
+                  <Input
+                    id="username"
+                    placeholder="Enter your username"
+                    {...field}
+                    className="bg-purple-700 text-white placeholder-purple-300 border-purple-600 focus-visible:ring-yellow-400"
+                    autoComplete="username"
+                  />
+                </FormControl>
+                <FormMessage className="text-red-500" />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="psnName"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-yellow-400" htmlFor="psnName">PSN Name</FormLabel>
+                <FormControl>
+                  <Input
+                    id="psnName"
+                    placeholder="Enter your PSN name"
+                    {...field}
+                    className="bg-purple-700 text-white placeholder-purple-300 border-purple-600 focus-visible:ring-yellow-400"
+                    autoComplete="off"
+                  />
+                </FormControl>
+                <FormMessage className="text-red-500" />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-yellow-400" htmlFor="email">Email</FormLabel>
+                <FormControl>
+                  <Input
+                    id="email"
+                    placeholder="Enter your email"
+                    {...field}
+                    className="bg-purple-700 text-white placeholder-purple-300 border-purple-600 focus-visible:ring-yellow-400"
+                    autoComplete="email"
+                  />
+                </FormControl>
+                <FormMessage className="text-red-500" />
+              </FormItem>
+            )}
+          />
+          <div className="flex space-x-2">
+            <Button
+              type="submit"
+              variant="secondary"
+              className="text-yellow-400 border border-yellow-400 hover:bg-yellow-400 hover:text-purple-900"
+              id="submit-profile"
+            >
+              {isEditing ? "Save Profile" : "Edit Profile"}
+            </Button>
+            {isEditing && (
+              <Button
+                type="button"
+                variant="secondary"
+                className="text-yellow-400 border border-yellow-400 hover:bg-yellow-400 hover:text-purple-900"
+                onClick={() => setIsEditing(false)}
+                id="cancel-edit-profile"
+              >
+                Cancel
+              </Button>
+            )}
+          </div>
+        </form>
+      </Form>
+    )
+  }
+
+  // Update the profile section in the main component
   return (
     <div className="relative min-h-screen">
       <FlickeringGrid
@@ -160,7 +393,7 @@ export default function Dashboard() {
         <BoxReveal width="100%" boxColor="#FFD700">
           <header className="flex justify-between items-center mb-6">
             <SparklesText
-              text={`Welcome, ${user.username || 'User'}!`}
+              text={`Welcome, ${userData.username || 'User'}!`}
               className="text-4xl font-bold text-yellow-400"
               colors={{ first: "#FFD700", second: "#FFA500" }}
               sparklesCount={15}
@@ -170,8 +403,8 @@ export default function Dashboard() {
               <DropdownMenu>
                 <DropdownMenuTrigger>
                   <Avatar>
-                    <AvatarImage src="https://github.com/shadcn.png" alt="@shadcn" />
-                    <AvatarFallback>CN</AvatarFallback>
+                    <AvatarImage src={userData?.avatarUrl || "https://github.com/shadcn.png"} alt="@shadcn" />
+                    <AvatarFallback>{userData?.username?.[0] || 'U'}</AvatarFallback>
                   </Avatar>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="bg-gradient-to-br from-purple-800 to-purple-900 border-2 border-yellow-400">
@@ -196,98 +429,48 @@ export default function Dashboard() {
                           <>
                             <div className="flex items-center space-x-4">
                               <Avatar className="h-20 w-20">
-                                <AvatarImage src={avatarPreview} alt="@johndoe" />
-                                <AvatarFallback>JD</AvatarFallback>
+                                {avatarUrl ? (
+                                  <Image
+                                    src={avatarUrl}
+                                    alt="Profile"
+                                    width={80}
+                                    height={80}
+                                    onError={() => setAvatarError(true)}
+                                    className="object-cover w-full h-full"
+                                  />
+                                ) : (
+                                  <AvatarFallback>{userData?.username?.[0] || 'U'}</AvatarFallback>
+                                )}
                               </Avatar>
                               <div>
-                                <h3 className="text-xl font-bold text-yellow-400">{form.getValues("username")}</h3>
-                                <p className="text-sm text-gray-300">{form.getValues("email")}</p>
+                                <h3 className="text-xl font-bold text-yellow-400">{userData?.username}</h3>
+                                <p className="text-sm text-gray-300">{userData?.email}</p>
                               </div>
                             </div>
                             <div className="space-y-2">
                               <h4 className="text-lg font-semibold text-yellow-400">Stats</h4>
-                              <p className="text-white">Total Matches: 89</p>
-                              <p className="text-white">Win Rate: 64%</p>
-                              <p className="text-white">Rank: #42</p>
+                              <p className="text-white">Total Matches: {userData?.totalMatches || 0}</p>
+                              <p className="text-white">Win Rate: {userData?.winRate || '0%'}</p>
+                              <p className="text-white">Rank: #{userData?.rank || 'N/A'}</p>
                             </div>
                             <Button 
-                              className="w-full bg-yellow-400 hover:bg-yellow-500 text-purple-900 font-bold"
-                              onClick={() => setIsEditing(true)}
+                              variant="secondary"
+                              className="text-yellow-400 border border-yellow-400 hover:bg-yellow-400 hover:text-purple-900"
+                              onClick={handleEditProfile}
+                              id="edit-profile-button"
                             >
                               Edit Profile
                             </Button>
                           </>
                         ) : (
-                          <Form {...form}>
-                            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                              <div className="flex flex-col items-center space-y-2">
-                                <Avatar className="h-20 w-20">
-                                  <AvatarImage src={avatarPreview} alt="Profile" />
-                                  <AvatarFallback>JD</AvatarFallback>
-                                </Avatar>
-                                <Input
-                                  type="file"
-                                  accept="image/*"
-                                  onChange={handleAvatarChange}
-                                  className="w-full bg-purple-700 text-white border-purple-600"
-                                />
-                              </div>
-                              <FormField
-                                control={form.control}
-                                name="username"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel className="text-yellow-400">Username</FormLabel>
-                                    <FormControl>
-                                      <Input {...field} className="bg-purple-700 text-white border-purple-600" />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                              <FormField
-                                control={form.control}
-                                name="psnName"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel className="text-yellow-400">PSN Name (not public)</FormLabel>
-                                    <FormControl>
-                                      <Input {...field} className="bg-purple-700 text-white border-purple-600" />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                              <FormField
-                                control={form.control}
-                                name="email"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel className="text-yellow-400">Email</FormLabel>
-                                    <FormControl>
-                                      <Input {...field} type="email" className="bg-purple-700 text-white border-purple-600" />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                              <div className="flex space-x-2">
-                                <Button 
-                                  type="submit" 
-                                  className="flex-1 bg-yellow-400 hover:bg-yellow-500 text-purple-900 font-bold"
-                                >
-                                  Save Changes
-                                </Button>
-                                <Button 
-                                  type="button" 
-                                  className="flex-1 bg-purple-700 hover:bg-purple-600 text-white"
-                                  onClick={() => setIsEditing(false)}
-                                >
-                                  Cancel
-                                </Button>
-                              </div>
-                            </form>
-                          </Form>
+                          <EditableProfileForm
+                            form={form}
+                            onSubmit={onSubmit}
+                            avatarPreview={avatarPreview}
+                            handleAvatarChange={handleAvatarChange}
+                            handleEditProfile={handleEditProfile}
+                            isEditing={isEditing}
+                          />
                         )}
                       </div>
                     </SheetContent>
@@ -297,7 +480,13 @@ export default function Dashboard() {
                     <span>Settings</span>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator className="bg-yellow-400/50" />
-                  <DropdownMenuItem className="text-white hover:bg-purple-700">
+                  <DropdownMenuItem 
+                    className="text-white hover:bg-purple-700"
+                    onSelect={(e) => {
+                      e.preventDefault()
+                      handleSignOut()
+                    }}
+                  >
                     <LogOut className="mr-2 h-4 w-4" />
                     <span>Log out</span>
                   </DropdownMenuItem>

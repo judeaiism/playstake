@@ -1,22 +1,37 @@
 'use client'
 
-import { useState, ChangeEvent, FormEvent } from 'react'
+import { useState, ChangeEvent, FormEvent, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import GridPattern from '@/components/magicui/grid-pattern'
+import { signInWithEmailAndPassword } from 'firebase/auth'
+import { auth } from '@/lib/firebase'
+import { useAuth } from '@/hooks/useAuth'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
   const router = useRouter()
+  const { user, loading } = useAuth()
+
+  useEffect(() => {
+    if (!loading && user) {
+      router.push('/dashboard')
+    }
+  }, [user, loading, router])
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    // TODO: Implement login logic here
-    console.log('Login attempt with:', { email, password })
-    // Redirect to the dashboard
-    router.push('/dashboard')
+    setError('')
+    try {
+      await signInWithEmailAndPassword(auth, email, password)
+      // Successful login, redirection will be handled by the useEffect hook
+    } catch (error) {
+      console.error('Login error:', error)
+      setError('Failed to log in. Please check your credentials.')
+    }
   }
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>, setter: (value: string) => void) => {
@@ -37,6 +52,7 @@ export default function LoginPage() {
       />
       <div className="bg-white rounded-xl p-8 shadow-2xl w-full max-w-md relative z-10">
         <h1 className="text-3xl font-bold text-center text-purple-900 mb-6">Login to PLAYSTAKE</h1>
+        {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>

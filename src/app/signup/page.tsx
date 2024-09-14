@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, ChangeEvent, FormEvent } from 'react'
+import { useState, useRef, ChangeEvent, FormEvent, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -23,47 +23,75 @@ export default function SignUpPage() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [psnName, setPsnName] = useState('')
-  const [avatar, setAvatar] = useState<string | null>(null)
+  const [avatar, setAvatar] = useState<File | null>(null)
   const [age, setAge] = useState<number | null>(null)
   const [error, setError] = useState('')
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const router = useRouter()
   const [isAgeConfirmed, setIsAgeConfirmed] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const router = useRouter()
+
+  useEffect(() => {
+    return () => {
+      if (avatar) {
+        URL.revokeObjectURL(URL.createObjectURL(avatar))
+      }
+    }
+  }, [avatar])
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError('')
     setIsLoading(true)
 
+    // Validate all fields
+    if (!username.trim()) {
+      setError('Username is required')
+      setIsLoading(false)
+      return
+    }
+    if (!psnName.trim()) {
+      setError('PSN Name is required')
+      setIsLoading(false)
+      return
+    }
+    if (!email.trim()) {
+      setError('Email is required')
+      setIsLoading(false)
+      return
+    }
+    if (password.length < 6) {
+      setError('Password should be at least 6 characters long')
+      setIsLoading(false)
+      return
+    }
     if (password !== confirmPassword) {
       setError('Passwords do not match')
       setIsLoading(false)
       return
     }
-
     if (age === null) {
       setError('Please confirm your age')
       setIsLoading(false)
       return
     }
 
+    // Proceed with user creation if all validations pass
     try {
-      // Create user with email and password
       const userCredential = await createUserWithEmailAndPassword(auth, email, password)
       const user = userCredential.user
 
-      // Upload avatar if selected
       let avatarUrl = null
       if (avatar) {
         try {
           const avatarRef = ref(storage, `avatars/${user.uid}/profile.jpg`)
-          const avatarBlob = await fetch(avatar).then(r => r.blob())
+          // Change this line
+          const avatarBlob = await avatar.arrayBuffer().then(buffer => new Blob([buffer]))
           await uploadBytes(avatarRef, avatarBlob)
           avatarUrl = await getDownloadURL(avatarRef)
         } catch (avatarError) {
           console.error('Failed to upload avatar:', avatarError)
-          // Optionally set an error message, but continue with user creation
           setError('Failed to upload avatar, but account created successfully.')
         }
       }
@@ -78,12 +106,19 @@ export default function SignUpPage() {
         createdAt: new Date().toISOString()
       })
 
-      // Redirect to the dashboard
       router.push('/dashboard')
     } catch (err) {
-      console.error(err)
+      console.error('Registration error:', err)
       if (err instanceof Error) {
-        setError(`Failed to register: ${err.message}`)
+        if (err.message.includes('auth/email-already-in-use')) {
+          setError('This email is already in use. Please try another one.')
+        } else if (err.message.includes('auth/invalid-email')) {
+          setError('Invalid email address. Please check and try again.')
+        } else if (err.message.includes('auth/weak-password')) {
+          setError('Password is too weak. Please use a stronger password.')
+        } else {
+          setError(`Failed to register: ${err.message}`)
+        }
       } else {
         setError('An unexpected error occurred. Please try again.')
       }
@@ -99,9 +134,15 @@ export default function SignUpPage() {
         setError('Avatar file size should be less than 5MB')
         return
       }
+      setAvatar(file) // Set the File object directly
       const reader = new FileReader()
       reader.onloadend = () => {
-        setAvatar(reader.result as string)
+        // You might want to store the data URL separately if needed for preview
+        // setAvatarPreview(reader.result as string)
+      }
+      reader.onerror = () => {
+        setError('Failed to load avatar image')
+        setAvatar(null)
       }
       reader.readAsDataURL(file)
     }
@@ -140,7 +181,13 @@ export default function SignUpPage() {
               <div className="flex flex-col items-center mb-3">
                 <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden mb-2">
                   {avatar ? (
-                    <Image src={avatar} alt="Profile" width={96} height={96} className="object-cover" />
+                    <Image 
+                      src={URL.createObjectURL(avatar)} 
+                      alt="Profile" 
+                      width={96} 
+                      height={96} 
+                      className="object-cover" 
+                    />
                   ) : (
                     <svg className="w-12 h-12 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
