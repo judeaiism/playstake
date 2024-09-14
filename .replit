@@ -9,8 +9,8 @@ PATH = "/home/runner/$REPL_SLUG/node_modules/.bin:$PATH"
 channel = "stable-22_11"
 
 [deployment]
-run = ["sh", "-c", "npm run build && npm start"]
-deploymentTarget = "cloudrun"
+run = ["sh", "-c", "npm run dev"]
+deploymentTarget = "gce"
 
 [[ports]]
 localPort = 3000
