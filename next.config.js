@@ -4,14 +4,24 @@ const nextConfig = {
   images: {
     domains: ['firebasestorage.googleapis.com'],
   },
-  webpackDevMiddleware: config => {
-    config.watchOptions = {
-      poll: 1000,
-      aggregateTimeout: 300,
-      ignored: ['**/node_modules', '!**/*.hot-update.js']
+  webpack: (config, { isServer, dev }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+      };
     }
-    return config
+    // Add source map support for better error reporting
+    if (dev) {
+      config.devtool = 'source-map';
+    }
+    return config;
   },
-}
+  // Add this to get more detailed error logs
+  onError: (error, errorInfo) => {
+    console.log('Next.js error:', error);
+    console.log('Next.js error info:', errorInfo);
+  },
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;

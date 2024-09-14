@@ -2,10 +2,19 @@
   "name": "playstake",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=18.17.1 <19.0.0",
+    "npm": "^9.8.1"
+  },
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start"
+    "preinstall": "npx npm@9.8.1 install -g npm@9.8.1",
+    "dev": "npx npm@9.8.1 run next:dev",
+    "build": "npx npm@9.8.1 run next:build",
+    "start": "npx npm@9.8.1 run next:start",
+    "next:dev": "next dev",
+    "next:build": "next build",
+    "next:start": "next start",
+    "lint": "next lint"
   },
   "dependencies": {
     "@heroicons/react": "^2.1.5",
@@ -31,10 +40,10 @@
     "firebase": "^10.13.1",
     "framer-motion": "^11.5.4",
     "lucide-react": "^0.441.0",
-    "next": "14.2.11",
+    "next": "^14.2.11",
     "next-auth": "^4.24.7",
-    "react": "^18",
-    "react-dom": "^18",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "react-hook-form": "^7.53.0",
     "react-hot-toast": "^2.4.1",
     "react-spring": "^9.7.4",
@@ -52,6 +61,7 @@
     "autoprefixer": "^10.4.20",
     "eslint": "^8",
     "eslint-config-next": "14.2.11",
+    "npm": "^9.8.1",
     "postcss": "^8.4.45",
     "stylelint": "^16.9.0",
     "stylelint-config-standard": "^36.0.1",
