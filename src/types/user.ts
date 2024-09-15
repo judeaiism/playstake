@@ -4,5 +4,7 @@ export interface User {
   username: string
   psnName: string
   avatarUrl: string
+  walletAddress: string // New field
+  balance: number // New field
   // Add any other relevant user properties
 }

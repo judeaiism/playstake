@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation'
 import { doc, getDoc, setDoc, updateDoc, DocumentData } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { Progress } from "@/components/ui/progress"
-import FlickeringGrid from "@/components/magicui/flickering-grid"
 import BoxReveal from "@/components/magicui/box-reveal"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -50,6 +49,8 @@ import {
 import Link from 'next/link'
 import SparklesText from "@/components/magicui/sparkles-text"
 import Image from 'next/image'
+import { useTransactionListener } from '@/hooks/useTransactionListener'
+import { BalanceManagement } from '@/components/dashboard/BalanceManagement'
 
 const profileFormSchema = z.object({
   username: z.string().min(2, {
@@ -237,6 +238,8 @@ export default function Dashboard() {
     }
   }
 
+  useTransactionListener()
+
   if (authLoading || loading) {
     return (
       <div className="flex flex-col justify-center items-center h-screen bg-gradient-to-br from-purple-700 to-red-700">
@@ -382,13 +385,7 @@ export default function Dashboard() {
 
   // Update the profile section in the main component
   return (
-    <div className="relative min-h-screen">
-      <FlickeringGrid
-        className="absolute inset-0 z-0"
-        color="rgb(255, 215, 0)"
-        maxOpacity={0.1}
-        flickerChance={0.2}
-      />
+    <div className="relative min-h-screen bg-gradient-to-br from-purple-900 to-black">
       <div className="relative z-10 container mx-auto p-4 space-y-6 text-white">
         <BoxReveal width="100%" boxColor="#FFD700">
           <header className="flex justify-between items-center mb-6">
@@ -452,6 +449,10 @@ export default function Dashboard() {
                               <p className="text-white">Total Matches: {userData?.totalMatches || 0}</p>
                               <p className="text-white">Win Rate: {userData?.winRate || '0%'}</p>
                               <p className="text-white">Rank: #{userData?.rank || 'N/A'}</p>
+                            </div>
+                            <div className="mt-4">
+                              <h2 className="text-xl font-semibold">Your Wallet Address</h2>
+                              <p className="text-gray-700">{userData?.walletAddress}</p>
                             </div>
                             <Button 
                               variant="secondary"
@@ -722,29 +723,11 @@ export default function Dashboard() {
 
         <div className="grid gap-6 md:grid-cols-2">
           <BoxReveal width="100%" boxColor="#00008B">
-            <Card className="bg-gradient-to-br from-blue-800 to-blue-900 border-4 border-yellow-400 shadow-lg">
-              <CardHeader>
-                <CardTitle className="text-2xl font-bold text-yellow-400">Balance Management</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-lg font-semibold">Current Balance:</span>
-                  <span className="text-2xl font-bold text-green-400">${balance}</span>
-                </div>
-                <div className="flex space-x-4">
-                  <Button onClick={handleAddBalance} className="flex-1 bg-green-500 hover:bg-green-600">
-                    <PlusCircle className="mr-2 h-4 w-4" /> Add $100
-                  </Button>
-                  <Button onClick={handleWithdraw} className="flex-1 bg-red-500 hover:bg-red-600" disabled={balance < 100}>
-                    <MinusCircle className="mr-2 h-4 w-4" /> Withdraw $100
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            <BalanceManagement balance={balance.toString()} updateBalance={handleAddBalance} />
           </BoxReveal>
 
           <BoxReveal width="100%" boxColor="#4B0082">
-            <Card className="bg-gradient-to-br from-indigo-800 to-indigo-900 border-4 border-yellow-400 shadow-lg">
+            <Card className="col-span-2 md:col-span-1 bg-gradient-to-br from-purple-800 to-purple-900 border-4 border-yellow-400 shadow-lg">
               <CardHeader>
                 <CardTitle className="text-2xl font-bold text-yellow-400">Find Users to Bet</CardTitle>
               </CardHeader>

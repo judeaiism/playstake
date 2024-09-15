@@ -7,6 +7,9 @@ import { auth, db } from '@/lib/firebase'
 
 interface ExtendedUser extends User {
   username?: string
+  walletAddress?: string
+  balance?: string
+  id: string
 }
 
 export function useAuth() {
@@ -20,9 +23,17 @@ export function useAuth() {
         const userDocSnap = await getDoc(userDocRef)
         if (userDocSnap.exists()) {
           const userData = userDocSnap.data()
-          setUser({ ...firebaseUser, username: userData.username })
+          setUser({ 
+            ...firebaseUser, 
+            username: userData.username, 
+            walletAddress: userData.walletAddress,
+            id: firebaseUser.uid // Add the id property here
+          })
         } else {
-          setUser(firebaseUser)
+          setUser({
+            ...firebaseUser,
+            id: firebaseUser.uid // Add the id property here
+          })
         }
       } else {
         setUser(null)

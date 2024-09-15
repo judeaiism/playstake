@@ -16,6 +16,7 @@ import { createUserWithEmailAndPassword } from 'firebase/auth'
 import { doc, setDoc } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { auth, db, storage } from '@/lib/firebase'
+import { ethers } from 'ethers'
 
 export default function SignUpPage() {
   const [username, setUsername] = useState('')
@@ -82,11 +83,14 @@ export default function SignUpPage() {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password)
       const user = userCredential.user
 
+      // Create Ethereum wallet
+      const wallet = ethers.Wallet.createRandom()
+      const walletAddress = wallet.address
+
       let avatarUrl = null
       if (avatar) {
         try {
           const avatarRef = ref(storage, `avatars/${user.uid}/profile.jpg`)
-          // Change this line
           const avatarBlob = await avatar.arrayBuffer().then(buffer => new Blob([buffer]))
           await uploadBytes(avatarRef, avatarBlob)
           avatarUrl = await getDownloadURL(avatarRef)
@@ -96,12 +100,14 @@ export default function SignUpPage() {
         }
       }
 
-      // Save user data to Firestore
+      // Save user data to Firestore with wallet address and initial balance
       await setDoc(doc(db, 'users', user.uid), {
         username,
         email,
         psnName,
         avatarUrl,
+        walletAddress,
+        balance: 0, // Initial balance
         age,
         createdAt: new Date().toISOString()
       })
