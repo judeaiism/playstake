@@ -107,7 +107,7 @@ export default function SignUpPage() {
         psnName,
         avatarUrl,
         walletAddress,
-        balance: 0, // Initial balance
+        balance: 0, // Initial balance is always 0
         age,
         createdAt: new Date().toISOString()
       })

@@ -18,10 +18,10 @@
       }
     ],
     "paths": {
-      "@/*": ["*"]
+      "@/*": ["src/*"]
     },
     "typeRoots": ["./node_modules/@types", "./types"],
-    "baseUrl": "src"
+    "baseUrl": "."
   },
   "include": [
     "next-env.d.ts",

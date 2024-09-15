@@ -13,6 +13,8 @@ export default function WalletPage() {
     return <div>Loading...</div>;
   }
 
+  const numericBalance = parseFloat(balance);
+
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-8">Your Wallet</h1>
@@ -33,7 +35,10 @@ export default function WalletPage() {
             <p>{balance} ETH</p>
           </CardContent>
         </Card>
-        <BalanceManagement balance={balance} updateBalance={refreshBalance} />
+        <BalanceManagement 
+          balance={numericBalance} 
+          updateBalance={refreshBalance} 
+        />
       </div>
     </div>
   );

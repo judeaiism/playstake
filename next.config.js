@@ -11,16 +11,17 @@ const nextConfig = {
         fs: false,
       };
     }
-    // Add source map support for better error reporting
     if (dev) {
       config.devtool = 'source-map';
     }
     return config;
   },
-  // Add this to get more detailed error logs
   onError: (error, errorInfo) => {
     console.log('Next.js error:', error);
     console.log('Next.js error info:', errorInfo);
+  },
+  env: {
+    ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
   },
 };
 

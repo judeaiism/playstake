@@ -1,14 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { onAuthStateChanged, User } from 'firebase/auth'
+import { onAuthStateChanged, User, signOut as firebaseSignOut } from 'firebase/auth'
 import { doc, getDoc } from 'firebase/firestore'
 import { auth, db } from '@/lib/firebase'
 
 interface ExtendedUser extends User {
   username?: string
   walletAddress?: string
-  balance?: string
+  balance: number
   id: string
 }
 
@@ -27,12 +27,14 @@ export function useAuth() {
             ...firebaseUser, 
             username: userData.username, 
             walletAddress: userData.walletAddress,
-            id: firebaseUser.uid // Add the id property here
+            balance: Number(userData.balance) || 0, // Ensure balance is a number
+            id: firebaseUser.uid
           })
         } else {
           setUser({
             ...firebaseUser,
-            id: firebaseUser.uid // Add the id property here
+            balance: 0, // Set balance to 0 if user document doesn't exist
+            id: firebaseUser.uid
           })
         }
       } else {
@@ -46,7 +48,8 @@ export function useAuth() {
 
   const signOut = async () => {
     try {
-      await auth.signOut()
+      await firebaseSignOut(auth)
+      setUser(null)
     } catch (error) {
       console.error('Error signing out:', error)
     }

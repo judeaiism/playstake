@@ -3,7 +3,7 @@
 import { useAuth } from '@/hooks/useAuth'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { doc, getDoc, setDoc, updateDoc, DocumentData } from 'firebase/firestore'
+import { doc, getDoc, setDoc, updateDoc, DocumentData, collection, getDocs } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { Progress } from "@/components/ui/progress"
 import BoxReveal from "@/components/magicui/box-reveal"
@@ -80,6 +80,8 @@ export default function Dashboard() {
   const [avatarPreview, setAvatarPreview] = useState("https://github.com/shadcn.png")
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [avatarError, setAvatarError] = useState(false)
+  const [allUsers, setAllUsers] = useState<Array<{id: string, username: string, avatarUrl?: string}>>([])
+  const [isLoadingUsers, setIsLoadingUsers] = useState(true)
 
   const form = useForm<z.infer<typeof profileFormSchema>>({
     resolver: zodResolver(profileFormSchema),
@@ -151,6 +153,28 @@ export default function Dashboard() {
       setFlashWin(prev => !prev)
     }, 500)
     return () => clearInterval(interval)
+  }, [])
+
+  useEffect(() => {
+    const fetchAllUsers = async () => {
+      setIsLoadingUsers(true)
+      try {
+        const usersCollection = collection(db, 'users')
+        const userSnapshot = await getDocs(usersCollection)
+        const userList = userSnapshot.docs.map(doc => ({
+          id: doc.id,
+          username: doc.data().username,
+          avatarUrl: doc.data().avatarUrl
+        }))
+        setAllUsers(userList)
+      } catch (error) {
+        console.error('Error fetching users:', error)
+      } finally {
+        setIsLoadingUsers(false)
+      }
+    }
+
+    fetchAllUsers()
   }, [])
 
   const handleAddBalance = () => {
@@ -723,7 +747,7 @@ export default function Dashboard() {
 
         <div className="grid gap-6 md:grid-cols-2">
           <BoxReveal width="100%" boxColor="#00008B">
-            <BalanceManagement balance={balance.toString()} updateBalance={handleAddBalance} />
+            <BalanceManagement balance={balance} updateBalance={handleAddBalance} />
           </BoxReveal>
 
           <BoxReveal width="100%" boxColor="#4B0082">
@@ -749,19 +773,30 @@ export default function Dashboard() {
                   />
                   <ShinyButton text="Search" className="bg-yellow-400 hover:bg-yellow-500 text-indigo-900" />
                 </div>
-                <div className="space-y-2">
-                  {['BetMaster', 'LuckyGamer', 'HighRoller'].map((user, index) => (
-                    <div key={index} className="flex items-center justify-between bg-indigo-700 p-2 rounded-lg">
-                      <div className="flex items-center space-x-2">
-                        <Avatar>
-                          <AvatarFallback>{user[0]}</AvatarFallback>
-                        </Avatar>
-                        <span>{user}</span>
-                      </div>
-                      <ShinyButton text="Challenge" className="bg-yellow-400 hover:bg-yellow-500 text-indigo-900" />
+                <ScrollArea className="h-[200px] w-full rounded-md border border-indigo-600 p-4">
+                  {isLoadingUsers ? (
+                    <div className="flex justify-center items-center h-full">
+                      <span className="text-yellow-400">Loading users...</span>
                     </div>
-                  ))}
-                </div>
+                  ) : (
+                    <div className="space-y-2 pr-4">
+                      {allUsers
+                        .filter(user => user.username.toLowerCase().includes(searchQuery.toLowerCase()))
+                        .map((user) => (
+                          <div key={user.id} className="flex items-center justify-between bg-indigo-700 p-2 rounded-lg">
+                            <div className="flex items-center space-x-2">
+                              <Avatar>
+                                <AvatarImage src={user.avatarUrl || undefined} alt={user.username} />
+                                <AvatarFallback>{user.username[0]}</AvatarFallback>
+                              </Avatar>
+                              <span className="text-white">{user.username}</span>
+                            </div>
+                            <ShinyButton text="Challenge" className="bg-yellow-400 hover:bg-yellow-500 text-indigo-900" />
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </ScrollArea>
               </CardContent>
             </Card>
           </BoxReveal>
