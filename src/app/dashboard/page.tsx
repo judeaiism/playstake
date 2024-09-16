@@ -3,7 +3,7 @@
 import { useAuth } from '@/hooks/useAuth'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { doc, getDoc, setDoc, updateDoc, DocumentData, collection, getDocs, query, where, onSnapshot, addDoc, or, Query, QuerySnapshot, arrayUnion } from 'firebase/firestore'
+import { doc, getDoc, setDoc, updateDoc, DocumentData, collection, getDocs, query, where, onSnapshot, addDoc, or, Query, QuerySnapshot, arrayUnion, orderBy } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { Progress } from "@/components/ui/progress"
 import BoxReveal from "@/components/magicui/box-reveal"
@@ -120,6 +120,7 @@ export default function Dashboard() {
     game: string;
     timestamp: string;
   }>>([])
+  const [notifications, setNotifications] = useState<any[]>([]);
 
   const form = useForm<z.infer<typeof profileFormSchema>>({
     resolver: zodResolver(profileFormSchema),
@@ -290,26 +291,65 @@ export default function Dashboard() {
     fetchRecentMatches()
   }, [user])
 
+  useEffect(() => {
+    if (!user) {
+      console.log('No user available for fetching notifications');
+      return;
+    }
+
+    console.log('Fetching notifications for user:', user.uid);
+
+    const fetchNotifications = async () => {
+      const notificationsRef = collection(db, 'notifications');
+      const q = query(
+        notificationsRef,
+        where('userId', '==', user.uid),
+        where('read', '==', false),
+        orderBy('createdAt', 'desc')
+      );
+
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        console.log('Notification snapshot received');
+        const newNotifications = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        console.log('New notifications:', newNotifications);
+        setNotifications(newNotifications);
+      }, (error) => {
+        console.error('Error in notification listener:', error);
+      });
+
+      return () => unsubscribe();
+    };
+
+    fetchNotifications();
+  }, [user]);
+
   const handleAcceptChallenge = async (challengeId: string) => {
-    console.log('Accepting challenge:', challengeId)
     try {
-      const challengeRef = doc(db, 'challenges', challengeId)
+      const challengeRef = doc(db, 'challenges', challengeId);
       await updateDoc(challengeRef, {
         status: 'accepted',
         acceptedAt: new Date()
-      })
-      console.log('Challenge update operation completed')
+      });
 
-      // Fetch the updated document to verify the change
-      const updatedDoc = await getDoc(challengeRef)
-      if (updatedDoc.exists()) {
-        console.log('Updated challenge document:', updatedDoc.data())
-      } else {
-        console.log('Challenge document not found after update')
-      }
+      // Mark the notification as read
+      const notificationQuery = query(
+        collection(db, 'notifications'),
+        where('challengeId', '==', challengeId),
+        where('userId', '==', user?.uid)
+      );
+      const notificationSnapshot = await getDocs(notificationQuery);
+      notificationSnapshot.forEach(async (doc) => {
+        await updateDoc(doc.ref, { read: true });
+      });
+
+      // Navigate to the game page
+      router.push(`/game/${challengeId}`);
     } catch (error) {
-      console.error('Error accepting challenge:', error)
-      alert('Failed to accept challenge. Please try again.')
+      console.error('Error accepting challenge:', error);
+      alert('Failed to accept challenge. Please try again.');
     }
   }
 
@@ -317,8 +357,17 @@ export default function Dashboard() {
     try {
       const challengeRef = doc(db, 'challenges', challengeId);
       await updateDoc(challengeRef, { status: 'declined' });
-      // Remove the challenge from the local state
-      setChallenges(challenges.filter(challenge => challenge.id !== challengeId));
+
+      // Mark the notification as read
+      const notificationQuery = query(
+        collection(db, 'notifications'),
+        where('challengeId', '==', challengeId),
+        where('userId', '==', user?.uid)
+      );
+      const notificationSnapshot = await getDocs(notificationQuery);
+      notificationSnapshot.forEach(async (doc) => {
+        await updateDoc(doc.ref, { read: true });
+      });
     } catch (error) {
       console.error('Error declining challenge:', error);
       // Show an error message to the user
@@ -334,21 +383,6 @@ export default function Dashboard() {
       setBalance(prevBalance => prevBalance - 100)
     }
   }
-
-  const notifications = [
-    {
-      title: "New challenge from ProGamer123",
-      description: "1 hour ago",
-    },
-    {
-      title: "You won $50 in your last match!",
-      description: "2 hours ago",
-    },
-    {
-      title: "Weekly tournament starting soon",
-      description: "3 hours ago",
-    },
-  ]
 
   const handleEditProfile = () => {
     if (isEditing) {
@@ -486,6 +520,7 @@ export default function Dashboard() {
     if (!user || !selectedOpponent) return;
 
     try {
+      console.log('Creating challenge...');
       const challengeRef = await addDoc(collection(db, 'challenges'), {
         challengerId: user.uid,
         challengerName: userData?.username,
@@ -495,9 +530,20 @@ export default function Dashboard() {
         status: 'pending',
         createdAt: new Date().toISOString()
       });
+      console.log('Challenge created with ID:', challengeRef.id);
+
+      console.log('Creating notification for opponent...');
+      const notificationRef = await addDoc(collection(db, 'notifications'), {
+        userId: selectedOpponent.id,
+        type: 'challenge',
+        challengeId: challengeRef.id,
+        message: `New challenge from ${userData?.username}`,
+        createdAt: new Date().toISOString(),
+        read: false
+      });
+      console.log('Notification created with ID:', notificationRef.id);
 
       setChallengeModalOpen(false);
-      // Show a success message to the user
       console.log('Challenge created successfully');
     } catch (error) {
       console.error('Error creating challenge:', error);
@@ -1112,7 +1158,7 @@ export default function Dashboard() {
             <Card className="bg-gradient-to-br from-teal-800 to-teal-900 border-4 border-yellow-400 shadow-lg">
               <CardHeader>
                 <CardTitle className="text-2xl font-bold text-yellow-400">Notifications</CardTitle>
-                <CardDescription className="text-white">You have {notifications.length + challenges.length} unread messages.</CardDescription>
+                <CardDescription className="text-white">You have {notifications.length} unread messages.</CardDescription>
               </CardHeader>
               <CardContent className="grid gap-4">
                 <div className="flex items-center space-x-4 rounded-md border border-teal-700 p-4">
@@ -1129,51 +1175,37 @@ export default function Dashboard() {
                 </div>
                 <ScrollArea className="h-[200px] w-full rounded-md border border-teal-700 p-4">
                   <div className="pr-4">
-                    {challenges.map((challenge) => (
+                    {notifications.map((notification) => (
                       <div
-                        key={challenge.id}
+                        key={notification.id}
                         className="mb-4 grid grid-cols-[25px_1fr] items-start pb-4 last:mb-0 last:pb-0"
                       >
                         <span className="flex h-2 w-2 translate-y-1 rounded-full bg-yellow-400" />
                         <div className="space-y-1">
                           <p className="text-sm font-medium leading-none text-white">
-                            New Challenge from {challenge.challengerName}
+                            {notification.message}
                           </p>
                           <p className="text-sm text-teal-300">
-                            Bet amount: ${challenge.betAmount}
+                            {new Date(notification.createdAt).toLocaleString()}
                           </p>
-                          <div className="flex space-x-2 mt-2">
-                            <Button 
-                              size="small" 
-                              onClick={() => handleAcceptChallenge(challenge.id)}
-                              className="bg-green-500 hover:bg-green-600 text-white"
-                            >
-                              Accept
-                            </Button>
-                            <Button 
-                              size="small" 
-                              onClick={() => handleDeclineChallenge(challenge.id)}
-                              className="bg-red-500 hover:bg-red-600 text-white"
-                            >
-                              Decline
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                    {notifications.map((notification, index) => (
-                      <div
-                        key={index}
-                        className="mb-4 grid grid-cols-[25px_1fr] items-start pb-4 last:mb-0 last:pb-0"
-                      >
-                        <span className="flex h-2 w-2 translate-y-1 rounded-full bg-yellow-400" />
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium leading-none text-white">
-                            {notification.title}
-                          </p>
-                          <p className="text-sm text-teal-300">
-                            {notification.description}
-                          </p>
+                          {notification.type === 'challenge' && (
+                            <div className="flex space-x-2 mt-2">
+                              <Button 
+                                size="small" 
+                                onClick={() => handleAcceptChallenge(notification.challengeId)}
+                                className="bg-green-500 hover:bg-green-600 text-white"
+                              >
+                                Accept
+                              </Button>
+                              <Button 
+                                size="small" 
+                                onClick={() => handleDeclineChallenge(notification.challengeId)}
+                                className="bg-red-500 hover:bg-red-600 text-white"
+                              >
+                                Decline
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}
