@@ -1,10 +1,7 @@
 export interface User {
-  id: string
-  email: string
-  username: string
-  psnName: string
-  avatarUrl: string
-  walletAddress: string // New field
-  balance: number // New field
-  // Add any other relevant user properties
+  id: string;
+  email: string;
+  balance: number;
+  walletAddress: string;
+  // Add any other properties that exist on the User type
 }

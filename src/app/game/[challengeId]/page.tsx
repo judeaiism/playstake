@@ -10,6 +10,9 @@ import { Info, Clock, Trophy } from 'lucide-react'
 import Confetti from 'react-confetti'
 import Image from 'next/image'
 
+// Add this import at the top of the file
+import { arrayUnion } from 'firebase/firestore'
+
 export default function GamePage({ params }: { params: { challengeId: string } }) {
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
@@ -24,6 +27,7 @@ export default function GamePage({ params }: { params: { challengeId: string } }
   const [showConfetti, setShowConfetti] = useState(false)
   const [challengerData, setChallengerData] = useState<any>(null)
   const [opponentData, setOpponentData] = useState<any>(null)
+  const [recentMatches, setRecentMatches] = useState<any[]>([])
 
   useEffect(() => {
     console.log('Auth loading:', authLoading)
@@ -107,14 +111,47 @@ export default function GamePage({ params }: { params: { challengeId: string } }
   }, [isEnding, timeLeft])
 
   const handleMatchEnd = async () => {
-    const challengeRef = doc(db, 'challenges', params.challengeId)
-    await updateDoc(challengeRef, {
-      status: 'completed',
-      challengerScore: scores.challenger,
-      opponentScore: scores.opponent,
-      endTime: new Date()
-    })
-    router.push('/dashboard')
+    if (!user || !challengerData || !opponentData) {
+      console.error('Missing user or player data')
+      return
+    }
+
+    try {
+      const challengeRef = doc(db, 'challenges', params.challengeId)
+      await updateDoc(challengeRef, {
+        status: 'completed',
+        challengerScore: scores.challenger,
+        opponentScore: scores.opponent,
+        endTime: new Date()
+      })
+
+      const newMatch = {
+        challenger: {
+          username: challengerData.username,
+          avatarUrl: challengerData.avatarUrl || null
+        },
+        opponent: {
+          username: opponentData.username,
+          avatarUrl: opponentData.avatarUrl || null
+        },
+        game: challenge.game || 'Unknown Game',
+        timestamp: new Date().toISOString()
+      }
+
+      // Update local state
+      setRecentMatches(prevMatches => [newMatch, ...prevMatches.slice(0, 4)])
+
+      // Update Firestore
+      const userRef = doc(db, 'users', user.uid)
+      await updateDoc(userRef, {
+        recentMatches: arrayUnion(newMatch)
+      })
+
+      router.push('/dashboard')
+    } catch (error) {
+      console.error('Error ending match:', error)
+      // Handle the error (e.g., show an error message to the user)
+    }
   }
 
   const toggleInstructions = () => {

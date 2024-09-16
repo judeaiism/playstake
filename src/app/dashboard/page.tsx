@@ -3,7 +3,7 @@
 import { useAuth } from '@/hooks/useAuth'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { doc, getDoc, setDoc, updateDoc, DocumentData, collection, getDocs, query, where, onSnapshot, addDoc, or, Query, QuerySnapshot } from 'firebase/firestore'
+import { doc, getDoc, setDoc, updateDoc, DocumentData, collection, getDocs, query, where, onSnapshot, addDoc, or, Query, QuerySnapshot, arrayUnion } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { Progress } from "@/components/ui/progress"
 import BoxReveal from "@/components/magicui/box-reveal"
@@ -53,6 +53,15 @@ import { useTransactionListener } from '@/hooks/useTransactionListener'
 import { BalanceManagement } from '@/components/dashboard/BalanceManagement'
 import { ChallengeModal } from '@/components/challenge-modal'
 
+// Comment out this line for now
+// import { signOut } from '@/lib/auth'
+
+// Add this placeholder function at the top of your file, outside of the component
+const signOut = async () => {
+  // Implement your signOut logic here
+  console.log('Sign out functionality not implemented yet');
+}
+
 const profileFormSchema = z.object({
   username: z.string().min(2, {
     message: "Username must be at least 2 characters.",
@@ -66,7 +75,7 @@ const profileFormSchema = z.object({
 })
 
 export default function Dashboard() {
-  const { user, loading: authLoading, signOut } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const router = useRouter()
   const [userData, setUserData] = useState<DocumentData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -95,9 +104,22 @@ export default function Dashboard() {
     id: string;
     challengerName: string;
     betAmount: number;
+    status: string;
   }>>([])
   const [isAccepting, setIsAccepting] = useState(false)
   const [acceptProgress, setAcceptProgress] = useState(0)
+  const [recentMatches, setRecentMatches] = useState<Array<{
+    challenger: {
+      username: string;
+      avatarUrl?: string;
+    };
+    opponent: {
+      username: string;
+      avatarUrl?: string;
+    };
+    game: string;
+    timestamp: string;
+  }>>([])
 
   const form = useForm<z.infer<typeof profileFormSchema>>({
     resolver: zodResolver(profileFormSchema),
@@ -107,6 +129,64 @@ export default function Dashboard() {
       email: "",
     },
   })
+
+  useEffect(() => {
+    console.log('Dashboard component mounted')
+    console.log('Auth loading:', authLoading)
+    console.log('User:', user)
+
+    if (authLoading) return
+
+    if (!user) {
+      console.log('No user, redirecting to login')
+      router.push('/login')
+      return
+    }
+
+    console.log('Setting up challenge listeners for user:', user.uid)
+
+    const challengesQuery = query(
+      collection(db, 'challenges'),
+      where('status', 'in', ['pending', 'accepted']),
+      where('challengerId', '==', user.uid)
+    )
+
+    const unsubscribe = onSnapshot(challengesQuery, (snapshot) => {
+      console.log('Challenges snapshot received')
+      snapshot.docChanges().forEach((change) => {
+        const challenge = { id: change.doc.id, ...change.doc.data() } as {
+          id: string;
+          status: string;
+          // Add other properties that you expect in a challenge
+        }
+        console.log('Challenge change:', change.type, challenge)
+
+        if (challenge.status === 'accepted') {
+          console.log('Accepted challenge detected, navigating to game page')
+          router.push(`/game/${challenge.id}`)
+        }
+      })
+
+      const updatedChallenges = snapshot.docs
+        .filter(doc => doc.data().status === 'pending')
+        .map(doc => ({ 
+          id: doc.id, 
+          challengerName: doc.data().challengerName, 
+          betAmount: doc.data().betAmount,
+          status: doc.data().status
+        }))
+      console.log('Updated pending challenges:', updatedChallenges)
+      setChallenges(updatedChallenges)
+    }, (error) => {
+      console.error('Error in challenges listener:', error)
+      // Handle the error (e.g., show an error message to the user)
+    })
+
+    return () => {
+      unsubscribe()
+      console.log('Challenge listener unsubscribed')
+    }
+  }, [user, authLoading, router])
 
   useEffect(() => {
     if (!authLoading) {
@@ -197,72 +277,39 @@ export default function Dashboard() {
   useEffect(() => {
     if (!user) return
 
-    const q = query(collection(db, 'challenges'), where('opponentId', '==', user.uid), where('status', '==', 'pending'))
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const challengesData = querySnapshot.docs.map(doc => ({ 
-        id: doc.id, 
-        challengerName: doc.data().challengerName,
-        betAmount: doc.data().betAmount
-      }))
-      setChallenges(challengesData)
-    })
-
-    return () => unsubscribe()
-  }, [user])
-
-  useEffect(() => {
-    if (!user) return;
-
-    const challengesRef = collection(db, 'challenges');
-    const baseQuery = query(challengesRef, where('status', '==', 'accepted'));
-
-    const challengerQuery = query(baseQuery, where('challengerId', '==', user.uid));
-    const opponentQuery = query(baseQuery, where('opponentId', '==', user.uid));
-
-    const unsubscribeChallengerQuery = onSnapshot(challengerQuery, handleQuerySnapshot);
-    const unsubscribeOpponentQuery = onSnapshot(opponentQuery, handleQuerySnapshot);
-
-    function handleQuerySnapshot(querySnapshot: QuerySnapshot<DocumentData>) {
-      querySnapshot.docChanges().forEach((change) => {
-        if (change.type === 'modified') {
-          const challengeData = change.doc.data();
-          if (challengeData.status === 'accepted') {
-            router.push(`/game/${change.doc.id}`);
-          }
+    const fetchRecentMatches = async () => {
+      if (user) {
+        const userRef = doc(db, 'users', user.uid)
+        const userSnap = await getDoc(userRef)
+        if (userSnap.exists()) {
+          setRecentMatches(userSnap.data().recentMatches || [])
         }
-      });
+      }
     }
 
-    return () => {
-      unsubscribeChallengerQuery();
-      unsubscribeOpponentQuery();
-    };
-  }, [user, router]);
+    fetchRecentMatches()
+  }, [user])
 
   const handleAcceptChallenge = async (challengeId: string) => {
+    console.log('Accepting challenge:', challengeId)
     try {
-      setIsAccepting(true)
-      setAcceptProgress(25)
-
       const challengeRef = doc(db, 'challenges', challengeId)
-      await updateDoc(challengeRef, { status: 'accepted' })
-      
-      setAcceptProgress(50)
+      await updateDoc(challengeRef, {
+        status: 'accepted',
+        acceptedAt: new Date()
+      })
+      console.log('Challenge update operation completed')
 
-      // Wait for a moment to ensure the challenge status is updated
-      await new Promise(resolve => setTimeout(resolve, 1000))
-
-      setAcceptProgress(75)
-
-      // Redirect both users to the game screen
-      router.push(`/game/${challengeId}`)
-
-      setAcceptProgress(100)
+      // Fetch the updated document to verify the change
+      const updatedDoc = await getDoc(challengeRef)
+      if (updatedDoc.exists()) {
+        console.log('Updated challenge document:', updatedDoc.data())
+      } else {
+        console.log('Challenge document not found after update')
+      }
     } catch (error) {
       console.error('Error accepting challenge:', error)
-      // Show an error message to the user
-    } finally {
-      setIsAccepting(false)
+      alert('Failed to accept challenge. Please try again.')
     }
   }
 
@@ -371,9 +418,68 @@ export default function Dashboard() {
     setMatchStarted(true)
   }
 
-  const handleMatchEnd = () => {
-    setActiveChallenge(null)
-    setMatchStarted(false)
+  const handleMatchEnd = async (challenge: {
+    id: string;
+    challengerId: string;
+    opponentId: string;
+    challengerScore: number;
+    opponentScore: number;
+    betAmount: number;
+    game: string;
+  }) => {
+    if (!user) {
+      console.error('Missing user data')
+      return
+    }
+
+    try {
+      // Fetch challenger and opponent data
+      const challengerDoc = await getDoc(doc(db, 'users', challenge.challengerId))
+      const opponentDoc = await getDoc(doc(db, 'users', challenge.opponentId))
+
+      if (!challengerDoc.exists() || !opponentDoc.exists()) {
+        console.error('Challenger or opponent data not found')
+        return
+      }
+
+      const challengerData = challengerDoc.data()
+      const opponentData = opponentDoc.data()
+
+      const challengeRef = doc(db, 'challenges', challenge.id)
+      await updateDoc(challengeRef, {
+        status: 'completed',
+        challengerScore: challenge.challengerScore,
+        opponentScore: challenge.opponentScore,
+        endTime: new Date()
+      })
+
+      const newMatch = {
+        challenger: {
+          username: challengerData.username,
+          avatarUrl: challengerData.avatarUrl || null
+        },
+        opponent: {
+          username: opponentData.username,
+          avatarUrl: opponentData.avatarUrl || null
+        },
+        game: challenge.game || 'Unknown Game',
+        timestamp: new Date().toISOString()
+      }
+
+      // Update local state
+      setRecentMatches(prevMatches => [newMatch, ...prevMatches.slice(0, 4)])
+
+      // Update Firestore
+      const userRef = doc(db, 'users', user.uid)
+      await updateDoc(userRef, {
+        recentMatches: arrayUnion(newMatch)
+      })
+
+      router.push('/dashboard')
+    } catch (error) {
+      console.error('Error ending match:', error)
+      // Handle the error (e.g., show an error message to the user)
+    }
   }
 
   const handleChallenge = async (betAmount: number) => {
@@ -852,27 +958,24 @@ export default function Dashboard() {
                 <CardContent>
                   <ScrollArea className="h-[200px]">
                     <div className="space-y-4 pr-4">
-                      {[
-                        { opponent: "Player123", result: "Win", game: "FIFA 23", avatarSrc: "/avatars/player123.png" },
-                        { opponent: "GamerPro", result: "Loss", game: "Fortnite", avatarSrc: "/avatars/gamerpro.png" },
-                        { opponent: "PSNChamp", result: "Win", game: "Call of Duty", avatarSrc: "/avatars/psnchamp.png" },
-                        { opponent: "XboxKing", result: "Win", game: "Halo Infinite", avatarSrc: "/avatars/xboxking.png" },
-                        { opponent: "PCMaster", result: "Loss", game: "League of Legends", avatarSrc: "/avatars/pcmaster.png" },
-                        { opponent: "MobileGamer", result: "Win", game: "PUBG Mobile", avatarSrc: "/avatars/mobilegamer.png" },
-                      ].map((match, index) => (
+                      {recentMatches.map((match, index) => (
                         <div key={index} className="flex items-center justify-between">
                           <div className="flex items-center space-x-4">
                             <Avatar>
-                              <AvatarImage src={match.avatarSrc} alt={match.opponent} />
-                              <AvatarFallback>{match.opponent.slice(0, 2).toUpperCase()}</AvatarFallback>
+                              <AvatarImage src={match.challenger.avatarUrl} alt={match.challenger.username} />
+                              <AvatarFallback>{match.challenger.username[0].toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm font-medium text-yellow-400">vs</span>
+                            <Avatar>
+                              <AvatarImage src={match.opponent.avatarUrl} alt={match.opponent.username} />
+                              <AvatarFallback>{match.opponent.username[0].toUpperCase()}</AvatarFallback>
                             </Avatar>
                             <div>
-                              <p className="text-sm font-medium leading-none text-yellow-400">{match.opponent}</p>
+                              <p className="text-sm font-medium leading-none text-yellow-400">
+                                {match.challenger.username} vs {match.opponent.username}
+                              </p>
                               <p className="text-sm text-gray-400">{match.game}</p>
                             </div>
-                          </div>
-                          <div className={`${match.result === "Win" ? 'bg-green-500' : 'bg-red-500'} text-white font-bold px-4 py-1 rounded-full`}>
-                            {match.result}
                           </div>
                         </div>
                       ))}
@@ -1087,15 +1190,6 @@ export default function Dashboard() {
         opponent={selectedOpponent}
         onChallenge={handleChallenge}
       />
-      {isAccepting && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-64">
-            <h2 className="text-xl font-bold mb-4">Accepting Challenge</h2>
-            <Progress value={acceptProgress} className="mb-4" />
-            <p className="text-center">{acceptProgress}% Complete</p>
-          </div>
-        </div>
-      )}
     </>
   )
 }
