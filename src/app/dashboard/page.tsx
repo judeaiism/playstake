@@ -96,6 +96,8 @@ export default function Dashboard() {
     challengerName: string;
     betAmount: number;
   }>>([])
+  const [isAccepting, setIsAccepting] = useState(false)
+  const [acceptProgress, setAcceptProgress] = useState(0)
 
   const form = useForm<z.infer<typeof profileFormSchema>>({
     resolver: zodResolver(profileFormSchema),
@@ -239,14 +241,28 @@ export default function Dashboard() {
 
   const handleAcceptChallenge = async (challengeId: string) => {
     try {
-      const challengeRef = doc(db, 'challenges', challengeId);
-      await updateDoc(challengeRef, { status: 'accepted' });
+      setIsAccepting(true)
+      setAcceptProgress(25)
+
+      const challengeRef = doc(db, 'challenges', challengeId)
+      await updateDoc(challengeRef, { status: 'accepted' })
       
-      // Redirect both users to a waiting room or game screen
-      router.push(`/game/${challengeId}`);
+      setAcceptProgress(50)
+
+      // Wait for a moment to ensure the challenge status is updated
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      setAcceptProgress(75)
+
+      // Redirect both users to the game screen
+      router.push(`/game/${challengeId}`)
+
+      setAcceptProgress(100)
     } catch (error) {
-      console.error('Error accepting challenge:', error);
+      console.error('Error accepting challenge:', error)
       // Show an error message to the user
+    } finally {
+      setIsAccepting(false)
     }
   }
 
@@ -1071,6 +1087,15 @@ export default function Dashboard() {
         opponent={selectedOpponent}
         onChallenge={handleChallenge}
       />
+      {isAccepting && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-64">
+            <h2 className="text-xl font-bold mb-4">Accepting Challenge</h2>
+            <Progress value={acceptProgress} className="mb-4" />
+            <p className="text-center">{acceptProgress}% Complete</p>
+          </div>
+        </div>
+      )}
     </>
   )
 }
