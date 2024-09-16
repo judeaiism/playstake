@@ -1,3 +1,4 @@
+import React from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import Globe from '@/components/magicui/globe'
@@ -7,7 +8,7 @@ import { VelocityScroll } from '@/components/magicui/scroll-based-velocity'
 import NumberTicker from '@/components/magicui/number-ticker'
 import { MagicCard } from '@/components/magicui/magic-card'
 
-export default function Home() {
+const Home: React.FC = () => {
   return (
     <div className="relative min-h-screen overflow-hidden">
       <Globe className="absolute inset-0 z-0" />
@@ -92,3 +93,5 @@ export default function Home() {
     </div>
   )
 }
+
+export default Home

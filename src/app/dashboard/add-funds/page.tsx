@@ -44,7 +44,7 @@ export default function AddFundsPage() {
       const response = await fetch('/api/generate-deposit-address', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user?.id }),
+        body: JSON.stringify({ userId: user?.uid }),
       });
 
       if (!response.ok) {

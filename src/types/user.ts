@@ -1,7 +1,6 @@
-export interface User {
-  id: string;
-  email: string;
-  balance: number;
-  walletAddress: string;
-  // Add any other properties that exist on the User type
+import { User as FirebaseUser } from 'firebase/auth'
+
+export interface User extends FirebaseUser {
+  balance?: number
+  // Add any other custom properties your app uses
 }

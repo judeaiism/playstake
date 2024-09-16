@@ -1,46 +1,55 @@
 import React from 'react'
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
+import { useRouter } from 'next/navigation'
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { PlusCircle, MinusCircle } from "lucide-react"
+import { DollarSign } from "lucide-react"
 
 interface BalanceManagementProps {
   balance: number
-  updateBalance: () => void
 }
 
-export const BalanceManagement: React.FC<BalanceManagementProps> = ({ balance, updateBalance }) => {
+export function BalanceManagement({ balance }: BalanceManagementProps) {
+  const router = useRouter()
+
+  const handleAddFunds = () => {
+    router.push('/dashboard/add-funds')
+  }
+
   const handleWithdraw = () => {
-    if (balance >= 100) {
-      updateBalance()
-    }
+    // Implement withdraw functionality
+    console.log("Withdraw functionality to be implemented")
   }
 
   return (
     <Card className="bg-gradient-to-br from-blue-800 to-blue-900 border-4 border-yellow-400 shadow-lg">
       <CardHeader>
         <CardTitle className="text-2xl font-bold text-yellow-400">Balance Management</CardTitle>
+        <CardDescription className="text-white">Manage your account balance</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex justify-between items-center">
-          <span className="text-xl font-bold text-white">Current Balance:</span>
-          <span className="text-2xl font-bold text-yellow-400">${balance}</span>
-        </div>
-        <div className="flex justify-between space-x-4">
-          <Button
-            onClick={updateBalance}
-            className="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded"
-          >
-            <PlusCircle className="mr-2 h-4 w-4" /> Add Funds
-          </Button>
-          <Button
-            onClick={handleWithdraw}
-            className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded"
-            disabled={balance < 100}
-          >
-            <MinusCircle className="mr-2 h-4 w-4" /> Withdraw
-          </Button>
+      <CardContent>
+        <div className="flex items-center justify-between">
+          <span className="text-lg font-medium text-white">Current Balance:</span>
+          <span className="text-2xl font-bold text-yellow-400">${balance.toFixed(2)}</span>
         </div>
       </CardContent>
+      <CardFooter className="flex justify-between">
+        <Button
+          variant="default"
+          size="large"
+          className="bg-green-500 hover:bg-green-600 text-white font-bold"
+          onClick={handleAddFunds}
+        >
+          <DollarSign className="mr-2 h-4 w-4" /> Add Funds
+        </Button>
+        <Button
+          variant="default"
+          size="large"
+          className="bg-red-500 hover:bg-red-600 text-white font-bold"
+          onClick={handleWithdraw}
+        >
+          <DollarSign className="mr-2 h-4 w-4" /> Withdraw
+        </Button>
+      </CardFooter>
     </Card>
   )
 }

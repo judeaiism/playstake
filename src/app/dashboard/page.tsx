@@ -1111,7 +1111,7 @@ export default function Dashboard() {
 
           <div className="grid gap-6 md:grid-cols-2">
             <BoxReveal width="100%" boxColor="#00008B">
-              <BalanceManagement balance={balance} updateBalance={handleAddBalance} />
+              <BalanceManagement balance={balance} />
             </BoxReveal>
 
             <BoxReveal width="100%" boxColor="#4B0082">
