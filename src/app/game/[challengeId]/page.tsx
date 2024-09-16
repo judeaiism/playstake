@@ -2,63 +2,87 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { doc, getDoc, onSnapshot, updateDoc } from 'firebase/firestore'
+import { doc, getDoc, onSnapshot, updateDoc, DocumentReference, Firestore } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/hooks/useAuth'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Info, Clock, Trophy } from 'lucide-react'
 import Confetti from 'react-confetti'
+import Image from 'next/image'
 
 export default function GamePage({ params }: { params: { challengeId: string } }) {
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
   const [challenge, setChallenge] = useState<any>(null)
-  const [opponent, setOpponent] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [isEnding, setIsEnding] = useState(false)
   const [timeLeft, setTimeLeft] = useState(3)
   const [showInstructions, setShowInstructions] = useState(false)
   const [matchTime, setMatchTime] = useState(0)
   const [scores, setScores] = useState({ challenger: 0, opponent: 0 })
   const [showConfetti, setShowConfetti] = useState(false)
+  const [challengerData, setChallengerData] = useState<any>(null)
+  const [opponentData, setOpponentData] = useState<any>(null)
 
   useEffect(() => {
+    console.log('Auth loading:', authLoading)
+    console.log('User:', user)
+
     if (authLoading) return
 
     if (!user) {
+      console.log('No user, redirecting to login')
       router.push('/login')
       return
     }
 
     const fetchChallengeData = async () => {
-      const challengeRef = doc(db, 'challenges', params.challengeId)
-      const unsubscribe = onSnapshot(challengeRef, (doc) => {
-        if (doc.exists()) {
-          const challengeData = doc.data()
-          setChallenge(challengeData)
-          setScores({
-            challenger: challengeData.challengerScore || 0,
-            opponent: challengeData.opponentScore || 0
-          })
-          // Fetch opponent data
-          const opponentId = challengeData.challengerId === user.uid ? challengeData.opponentId : challengeData.challengerId
-          fetchOpponentData(opponentId)
-        } else {
-          // Handle case where challenge doesn't exist
-          router.push('/dashboard')
-        }
-      })
+      console.log('Fetching challenge data for ID:', params.challengeId)
+      try {
+        const challengeRef = doc(db as Firestore, 'challenges', params.challengeId)
+        const unsubscribe = onSnapshot(challengeRef, async (docSnapshot) => {
+          if (docSnapshot.exists()) {
+            const challengeData = docSnapshot.data()
+            console.log('Challenge data:', challengeData)
+            setChallenge(challengeData)
+            setScores({
+              challenger: challengeData.challengerScore || 0,
+              opponent: challengeData.opponentScore || 0
+            })
+            
+            // Fetch challenger and opponent data
+            const challengerRef = doc(db as Firestore, 'users', challengeData.challengerId)
+            const opponentRef = doc(db as Firestore, 'users', challengeData.opponentId)
+            
+            const [challengerSnap, opponentSnap] = await Promise.all([
+              getDoc(challengerRef),
+              getDoc(opponentRef)
+            ])
 
-      return () => unsubscribe()
-    }
+            if (challengerSnap.exists() && opponentSnap.exists()) {
+              console.log('Challenger data:', challengerSnap.data())
+              console.log('Opponent data:', opponentSnap.data())
+              setChallengerData(challengerSnap.data())
+              setOpponentData(opponentSnap.data())
+            } else {
+              console.error('Challenger or opponent data not found')
+              setError('Player data not found')
+            }
+          } else {
+            console.error('Challenge not found')
+            setError('Challenge not found')
+            router.push('/dashboard')
+          }
+          setLoading(false)
+        })
 
-    const fetchOpponentData = async (opponentId: string) => {
-      const opponentRef = doc(db, 'users', opponentId)
-      const opponentSnap = await getDoc(opponentRef)
-      if (opponentSnap.exists()) {
-        setOpponent(opponentSnap.data())
+        return () => unsubscribe()
+      } catch (err) {
+        console.error('Error fetching challenge data:', err)
+        setError('Error fetching challenge data')
+        setLoading(false)
       }
-      setLoading(false)
     }
 
     fetchChallengeData()
@@ -116,11 +140,17 @@ export default function GamePage({ params }: { params: { challengeId: string } }
   }
 
   if (authLoading || loading) {
-    return <div>Loading...</div>
+    return <div className="flex items-center justify-center min-h-screen">Loading...</div>
   }
 
-  if (!challenge || !opponent || !user) {
-    return <div>Challenge not found or user not authenticated</div>
+  if (error) {
+    return <div className="flex items-center justify-center min-h-screen">Error: {error}</div>
+  }
+
+  if (!challenge || !user || !challengerData || !opponentData) {
+    return <div className="flex items-center justify-center min-h-screen">
+      Challenge or user data not fully loaded. Please try again.
+    </div>
   }
 
   const isChallenger = user.uid === challenge.challengerId
@@ -147,14 +177,18 @@ export default function GamePage({ params }: { params: { challengeId: string } }
         <h2 className="text-2xl font-semibold text-gray-800 mb-6 text-center">Match in Progress</h2>
         <div className="flex justify-between items-center mb-8">
           <PlayerAvatar
-            name={challenge.challengerName}
+            name={challengerData?.username || 'Challenger'}
+            psnName={challengerData?.psnName || 'N/A'}
+            avatarUrl={challengerData?.avatarUrl}
             score={scores.challenger}
             onScoreIncrement={() => incrementScore('challenger')}
             isCurrentUser={isChallenger}
           />
           <div className="text-4xl font-bold text-gray-800">VS</div>
           <PlayerAvatar
-            name={challenge.opponentName}
+            name={opponentData?.username || 'Opponent'}
+            psnName={opponentData?.psnName || 'N/A'}
+            avatarUrl={opponentData?.avatarUrl}
             score={scores.opponent}
             onScoreIncrement={() => incrementScore('opponent')}
             isCurrentUser={!isChallenger}
@@ -223,18 +257,36 @@ export default function GamePage({ params }: { params: { challengeId: string } }
   )
 }
 
-function PlayerAvatar({ name, score, onScoreIncrement, isCurrentUser }: { name: string; score: number; onScoreIncrement: () => void; isCurrentUser: boolean }) {
+function PlayerAvatar({ name, psnName, avatarUrl, score, onScoreIncrement, isCurrentUser }: { 
+  name: string; 
+  psnName: string;
+  avatarUrl?: string;
+  score: number; 
+  onScoreIncrement: () => void; 
+  isCurrentUser: boolean 
+}) {
   return (
     <div className="text-center">
       <motion.div
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
         onClick={isCurrentUser ? onScoreIncrement : undefined}
-        className={`w-20 h-20 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-2xl font-bold mb-2 ${isCurrentUser ? 'cursor-pointer' : ''}`}
+        className={`w-20 h-20 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-2xl font-bold mb-2 overflow-hidden ${isCurrentUser ? 'cursor-pointer' : ''}`}
       >
-        {name[0].toUpperCase()}
+        {avatarUrl ? (
+          <Image
+            src={avatarUrl}
+            alt={name}
+            width={80}
+            height={80}
+            className="object-cover w-full h-full"
+          />
+        ) : (
+          name[0].toUpperCase()
+        )}
       </motion.div>
       <p className="text-gray-800 font-medium">{name}</p>
+      <p className="text-gray-600 text-sm">PSN: {psnName}</p>
       <p className="text-gray-600">Score: {score}</p>
     </div>
   )
