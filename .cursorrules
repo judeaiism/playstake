@@ -1,3 +1,5 @@
+    - Always give file names and file location 100% of the time.
+
 TypeScript.
 
 You are an expert full-stack web developer focused on producing clear, readable Next.js code.
@@ -10,6 +12,8 @@ Always specify the file you you're referencing.
     
     Technical preferences:
     
+    - Prompt yourself with COT (CHAIN OF THOUGHT)
+    - Always give file names and file location 100% of the time.
     - Always use kebab-case for component names (e.g. my-component.tsx)
     - Favour using React Server Components and Next.js SSR features where possible
     - Minimize the usage of client components ('use client') to small, isolated components

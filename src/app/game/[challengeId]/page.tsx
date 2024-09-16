@@ -2,16 +2,16 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { doc, getDoc, onSnapshot, updateDoc, DocumentReference, Firestore } from 'firebase/firestore'
+import { doc, getDoc, onSnapshot, updateDoc, DocumentReference, Firestore, collection, increment, addDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/hooks/useAuth'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Info, Clock, Trophy } from 'lucide-react'
+import { Info, Clock, Trophy, AlertTriangle, PlusCircle, MinusCircle } from 'lucide-react'
 import Confetti from 'react-confetti'
 import Image from 'next/image'
-
-// Add this import at the top of the file
-import { arrayUnion } from 'firebase/firestore'
+import { toast } from 'react-hot-toast'
+import { FirebaseError } from 'firebase/app'
+import { useFirestore } from '@/hooks/useFirestore'
 
 export default function GamePage({ params }: { params: { challengeId: string } }) {
   const { user, loading: authLoading } = useAuth()
@@ -28,6 +28,8 @@ export default function GamePage({ params }: { params: { challengeId: string } }
   const [challengerData, setChallengerData] = useState<any>(null)
   const [opponentData, setOpponentData] = useState<any>(null)
   const [recentMatches, setRecentMatches] = useState<any[]>([])
+  const [selectedWinner, setSelectedWinner] = useState<'challenger' | 'opponent' | 'draw' | null>(null)
+  const { updateDocument, addDocument, incrementField } = useFirestore()
 
   useEffect(() => {
     console.log('Auth loading:', authLoading)
@@ -113,44 +115,46 @@ export default function GamePage({ params }: { params: { challengeId: string } }
   const handleMatchEnd = async () => {
     if (!user || !challengerData || !opponentData) {
       console.error('Missing user or player data')
+      toast.error('Unable to end match due to missing data')
       return
     }
 
     try {
-      const challengeRef = doc(db, 'challenges', params.challengeId)
-      await updateDoc(challengeRef, {
+      const matchResult = {
         status: 'completed',
         challengerScore: scores.challenger,
         opponentScore: scores.opponent,
-        endTime: new Date()
-      })
-
-      const newMatch = {
-        challenger: {
-          username: challengerData.username,
-          avatarUrl: challengerData.avatarUrl || null
-        },
-        opponent: {
-          username: opponentData.username,
-          avatarUrl: opponentData.avatarUrl || null
-        },
-        game: challenge.game || 'Unknown Game',
-        timestamp: new Date().toISOString()
+        endTime: new Date().toISOString(),
+        winner: selectedWinner,
+        betAmount: challenge.betAmount,
+        duration: matchTime,
+        challengerId: challenge.challengerId,
+        opponentId: challenge.opponentId,
+        challengerUsername: challengerData.username,
+        opponentUsername: opponentData.username,
+        game: challenge.game || 'Unknown Game'
       }
 
-      // Update local state
-      setRecentMatches(prevMatches => [newMatch, ...prevMatches.slice(0, 4)])
+      // Update challenge document
+      await updateDocument('challenges', params.challengeId, matchResult)
 
-      // Update Firestore
-      const userRef = doc(db, 'users', user.uid)
-      await updateDoc(userRef, {
-        recentMatches: arrayUnion(newMatch)
-      })
+      // Add match result to 'matchResults' collection
+      await addDocument('matchResults', matchResult)
 
+      // Update user balances
+      if (selectedWinner !== 'draw') {
+        const winnerId = selectedWinner === 'challenger' ? challenge.challengerId : challenge.opponentId
+        const loserId = selectedWinner === 'challenger' ? challenge.opponentId : challenge.challengerId
+
+        await incrementField('users', winnerId, 'balance', challenge.betAmount)
+        await incrementField('users', loserId, 'balance', -challenge.betAmount)
+      }
+
+      toast.success('Match ended successfully')
       router.push('/dashboard')
     } catch (error) {
       console.error('Error ending match:', error)
-      // Handle the error (e.g., show an error message to the user)
+      // The error is already handled in the useFirestore hook
     }
   }
 
@@ -174,6 +178,24 @@ export default function GamePage({ params }: { params: { challengeId: string } }
     await updateDoc(challengeRef, {
       [`${player}Score`]: newScores[player]
     })
+  }
+
+  const decrementScore = async (player: 'challenger' | 'opponent') => {
+    if (scores[player] > 0) {
+      const newScores = {
+        ...scores,
+        [player]: scores[player] - 1
+      }
+      setScores(newScores)
+      const challengeRef = doc(db, 'challenges', params.challengeId)
+      await updateDoc(challengeRef, {
+        [`${player}Score`]: newScores[player]
+      })
+    }
+  }
+
+  const handleWinnerSelection = (winner: 'challenger' | 'opponent' | 'draw') => {
+    setSelectedWinner(winner)
   }
 
   if (authLoading || loading) {
@@ -208,7 +230,7 @@ export default function GamePage({ params }: { params: { challengeId: string } }
             transition={{ duration: 0.5, delay: 0.2 }}
             className="text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-purple-600"
           >
-            GAMEMATCH
+            PLAY$$TAKES$
           </motion.h1>
         </div>
         <h2 className="text-2xl font-semibold text-gray-800 mb-6 text-center">Match in Progress</h2>
@@ -219,6 +241,7 @@ export default function GamePage({ params }: { params: { challengeId: string } }
             avatarUrl={challengerData?.avatarUrl}
             score={scores.challenger}
             onScoreIncrement={() => incrementScore('challenger')}
+            onScoreDecrement={() => decrementScore('challenger')}
             isCurrentUser={isChallenger}
           />
           <div className="text-4xl font-bold text-gray-800">VS</div>
@@ -228,6 +251,7 @@ export default function GamePage({ params }: { params: { challengeId: string } }
             avatarUrl={opponentData?.avatarUrl}
             score={scores.opponent}
             onScoreIncrement={() => incrementScore('opponent')}
+            onScoreDecrement={() => decrementScore('opponent')}
             isCurrentUser={!isChallenger}
           />
         </div>
@@ -247,16 +271,67 @@ export default function GamePage({ params }: { params: { challengeId: string } }
             </span>
           </div>
         </div>
+
+        <div className="mt-8 mb-4">
+          <h3 className="text-lg font-semibold text-gray-800 mb-2">Select Match Result:</h3>
+          <div className="flex justify-between">
+            <button
+              onClick={() => handleWinnerSelection('challenger')}
+              className={`px-4 py-2 rounded-full ${
+                selectedWinner === 'challenger'
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-200 text-gray-800'
+              }`}
+            >
+              {challengerData?.username} Wins
+            </button>
+            <button
+              onClick={() => handleWinnerSelection('draw')}
+              className={`px-4 py-2 rounded-full ${
+                selectedWinner === 'draw'
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-200 text-gray-800'
+              }`}
+            >
+              Draw
+            </button>
+            <button
+              onClick={() => handleWinnerSelection('opponent')}
+              className={`px-4 py-2 rounded-full ${
+                selectedWinner === 'opponent'
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-200 text-gray-800'
+              }`}
+            >
+              {opponentData?.username} Wins
+            </button>
+          </div>
+        </div>
+
+        <div className="mb-4">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5 }}
+            className="flex items-center p-2 bg-red-100 border border-red-400 text-red-700 rounded"
+          >
+            <AlertTriangle className="w-5 h-5 mr-2" />
+            <p className="text-sm">
+              <strong className="font-bold">Warning:</strong> Lying twice about game results will result in a ban.
+            </p>
+          </motion.div>
+        </div>
+
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={() => setIsEnding(true)}
-          disabled={isEnding}
+          disabled={isEnding || !selectedWinner}
           className={`w-full py-3 rounded-full text-white font-semibold transition-colors ${
-            isEnding ? 'bg-gray-400' : 'bg-blue-500 hover:bg-blue-600'
+            isEnding || !selectedWinner ? 'bg-gray-400' : 'bg-blue-500 hover:bg-blue-600'
           }`}
         >
-          {isEnding ? `Ending in ${timeLeft}...` : 'End Match'}
+          {isEnding ? `Ending in ${timeLeft}...` : selectedWinner ? 'End Match' : 'Select Match Result to End Match'}
         </motion.button>
         
         <div className="mt-8">
@@ -294,12 +369,13 @@ export default function GamePage({ params }: { params: { challengeId: string } }
   )
 }
 
-function PlayerAvatar({ name, psnName, avatarUrl, score, onScoreIncrement, isCurrentUser }: { 
+function PlayerAvatar({ name, psnName, avatarUrl, score, onScoreIncrement, onScoreDecrement, isCurrentUser }: { 
   name: string; 
   psnName: string;
   avatarUrl?: string;
   score: number; 
-  onScoreIncrement: () => void; 
+  onScoreIncrement: () => void;
+  onScoreDecrement: () => void;
   isCurrentUser: boolean 
 }) {
   return (
@@ -307,8 +383,7 @@ function PlayerAvatar({ name, psnName, avatarUrl, score, onScoreIncrement, isCur
       <motion.div
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
-        onClick={isCurrentUser ? onScoreIncrement : undefined}
-        className={`w-20 h-20 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-2xl font-bold mb-2 overflow-hidden ${isCurrentUser ? 'cursor-pointer' : ''}`}
+        className={`w-20 h-20 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-2xl font-bold mb-2 overflow-hidden`}
       >
         {avatarUrl ? (
           <Image
@@ -317,6 +392,7 @@ function PlayerAvatar({ name, psnName, avatarUrl, score, onScoreIncrement, isCur
             width={80}
             height={80}
             className="object-cover w-full h-full"
+            priority={true}
           />
         ) : (
           name[0].toUpperCase()
@@ -325,6 +401,16 @@ function PlayerAvatar({ name, psnName, avatarUrl, score, onScoreIncrement, isCur
       <p className="text-gray-800 font-medium">{name}</p>
       <p className="text-gray-600 text-sm">PSN: {psnName}</p>
       <p className="text-gray-600">Score: {score}</p>
+      {isCurrentUser && (
+        <div className="flex justify-center space-x-2 mt-2">
+          <button onClick={onScoreDecrement} className="p-1 bg-red-500 text-white rounded-full">
+            <MinusCircle size={16} />
+          </button>
+          <button onClick={onScoreIncrement} className="p-1 bg-green-500 text-white rounded-full">
+            <PlusCircle size={16} />
+          </button>
+        </div>
+      )}
     </div>
   )
 }

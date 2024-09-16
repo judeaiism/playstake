@@ -3,7 +3,7 @@
 import { useAuth } from '@/hooks/useAuth'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { doc, getDoc, setDoc, updateDoc, DocumentData, collection, getDocs, query, where, onSnapshot, addDoc, or, Query, QuerySnapshot, arrayUnion, orderBy } from 'firebase/firestore'
+import { doc, getDoc, setDoc, updateDoc, DocumentData, collection, getDocs, query, where, onSnapshot, addDoc, or, Query, QuerySnapshot, arrayUnion, orderBy, increment } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { Progress } from "@/components/ui/progress"
 import BoxReveal from "@/components/magicui/box-reveal"
@@ -52,15 +52,10 @@ import Image from 'next/image'
 import { useTransactionListener } from '@/hooks/useTransactionListener'
 import { BalanceManagement } from '@/components/dashboard/BalanceManagement'
 import { ChallengeModal } from '@/components/challenge-modal'
-
-// Comment out this line for now
-// import { signOut } from '@/lib/auth'
-
-// Add this placeholder function at the top of your file, outside of the component
-const signOut = async () => {
-  // Implement your signOut logic here
-  console.log('Sign out functionality not implemented yet');
-}
+import { signOut } from '@/lib/auth'
+import { onAuthStateChanged } from 'firebase/auth'
+import { auth } from '@/lib/firebase'
+import { toast } from 'react-hot-toast'
 
 const profileFormSchema = z.object({
   username: z.string().min(2, {
@@ -82,7 +77,7 @@ export default function Dashboard() {
   const [progress, setProgress] = useState(0)
 
   const [flashWin, setFlashWin] = useState(false)
-  const [balance, setBalance] = useState(1000)
+  const [balance, setBalance] = useState(0)
   const [searchQuery, setSearchQuery] = useState('')
   const [betOption, setBetOption] = useState("online")
   const [isEditing, setIsEditing] = useState(false)
@@ -90,7 +85,7 @@ export default function Dashboard() {
   const [avatarPreview, setAvatarPreview] = useState("https://github.com/shadcn.png")
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [avatarError, setAvatarError] = useState(false)
-  const [allUsers, setAllUsers] = useState<Array<{id: string, username: string, avatarUrl?: string}>>([])
+  const [allUsers, setAllUsers] = useState<Array<{id: string, username: string, avatarUrl?: string, isOnline: boolean}>>([])
   const [isLoadingUsers, setIsLoadingUsers] = useState(true)
   const [challengeModalOpen, setChallengeModalOpen] = useState(false)
   const [selectedOpponent, setSelectedOpponent] = useState<{
@@ -121,6 +116,7 @@ export default function Dashboard() {
     timestamp: string;
   }>>([])
   const [notifications, setNotifications] = useState<any[]>([]);
+  const [onlineUsers, setOnlineUsers] = useState<string[]>([])
 
   const form = useForm<z.infer<typeof profileFormSchema>>({
     resolver: zodResolver(profileFormSchema),
@@ -261,7 +257,8 @@ export default function Dashboard() {
         const userList = userSnapshot.docs.map(doc => ({
           id: doc.id,
           username: doc.data().username,
-          avatarUrl: doc.data().avatarUrl
+          avatarUrl: doc.data().avatarUrl,
+          isOnline: doc.data().isOnline
         }))
         setAllUsers(userList)
       } catch (error) {
@@ -325,6 +322,39 @@ export default function Dashboard() {
 
     fetchNotifications();
   }, [user]);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        // User is signed in
+        updateOnlineStatus(user.uid, true)
+      } else {
+        // User is signed out
+        if (userData) {
+          updateOnlineStatus(userData.id, false)
+        }
+      }
+    })
+
+    return () => unsubscribe()
+  }, [userData])
+
+  useEffect(() => {
+    const usersRef = collection(db, 'users')
+    const unsubscribe = onSnapshot(usersRef, (snapshot) => {
+      const onlineUserIds = snapshot.docs
+        .filter(doc => doc.data().isOnline)
+        .map(doc => doc.id)
+      setOnlineUsers(onlineUserIds)
+    })
+
+    return () => unsubscribe()
+  }, [])
+
+  const updateOnlineStatus = async (userId: string, isOnline: boolean) => {
+    const userRef = doc(db, 'users', userId)
+    await updateDoc(userRef, { isOnline })
+  }
 
   const handleAcceptChallenge = async (challengeId: string) => {
     try {
@@ -487,6 +517,34 @@ export default function Dashboard() {
         endTime: new Date()
       })
 
+      // Add the match result to a separate 'matchResults' collection
+      const matchResultsRef = collection(db, 'matchResults')
+      await addDoc(matchResultsRef, {
+        status: 'completed',
+        challengerId: challenge.challengerId,
+        opponentId: challenge.opponentId,
+        challengerUsername: challengerData.username,
+        opponentUsername: opponentData.username,
+        game: challenge.game || 'Unknown Game',
+        date: new Date().toISOString(),
+        betAmount: challenge.betAmount,
+        challengerScore: challenge.challengerScore,
+        opponentScore: challenge.opponentScore,
+        winner: challenge.challengerScore > challenge.opponentScore ? challenge.challengerId : challenge.opponentId
+      })
+
+      // Update user balances
+      const winnerRef = doc(db, 'users', challenge.challengerScore > challenge.opponentScore ? challenge.challengerId : challenge.opponentId)
+      const loserRef = doc(db, 'users', challenge.challengerScore > challenge.opponentScore ? challenge.opponentId : challenge.challengerId)
+
+      await updateDoc(winnerRef, {
+        balance: increment(challenge.betAmount)
+      })
+
+      await updateDoc(loserRef, {
+        balance: increment(-challenge.betAmount)
+      })
+
       const newMatch = {
         challenger: {
           username: challengerData.username,
@@ -552,6 +610,25 @@ export default function Dashboard() {
   }
 
   useTransactionListener()
+
+  useEffect(() => {
+    if (user) {
+      const userRef = doc(db, 'users', user.uid)
+      const unsubscribe = onSnapshot(userRef, (doc) => {
+        if (doc.exists()) {
+          setBalance(doc.data().balance || 0)
+        } else {
+          console.error('User document not found')
+          toast.error('Failed to load user data')
+        }
+      }, (error) => {
+        console.error('Error fetching user data:', error)
+        toast.error('Failed to load user data')
+      })
+
+      return () => unsubscribe()
+    }
+  }, [user])
 
   if (authLoading || loading) {
     return (
@@ -1076,7 +1153,15 @@ export default function Dashboard() {
                                   <AvatarImage src={opponent.avatarUrl || undefined} alt={opponent.username} />
                                   <AvatarFallback>{opponent.username[0]}</AvatarFallback>
                                 </Avatar>
-                                <span className="text-white">{opponent.username}</span>
+                                <div className="flex flex-col">
+                                  <span className="text-white">{opponent.username}</span>
+                                  <Badge 
+                                    variant={onlineUsers.includes(opponent.id) ? "success" : "secondary"}
+                                    className="text-xs"
+                                  >
+                                    {onlineUsers.includes(opponent.id) ? "Online" : "Offline"}
+                                  </Badge>
+                                </div>
                               </div>
                               <ShinyButton
                                 text="Challenge"
