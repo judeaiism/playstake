@@ -357,8 +357,25 @@ export default function Dashboard() {
   }
 
   const handleAcceptChallenge = async (challengeId: string) => {
+    setIsAccepting(true)
+    setAcceptProgress(0)
+    setChallengeModalOpen(true)
+    setActiveChallenge(challengeId)
+
     try {
       const challengeRef = doc(db, 'challenges', challengeId);
+
+      // Simulate progress
+      const interval = setInterval(() => {
+        setAcceptProgress((prev) => {
+          if (prev >= 100) {
+            clearInterval(interval)
+            return 100
+          }
+          return prev + 10
+        })
+      }, 200)
+
       await updateDoc(challengeRef, {
         status: 'accepted',
         acceptedAt: new Date()
@@ -375,11 +392,18 @@ export default function Dashboard() {
         await updateDoc(doc.ref, { read: true });
       });
 
+      clearInterval(interval)
+      setAcceptProgress(100)
+
       // Navigate to the game page
       router.push(`/game/${challengeId}`);
     } catch (error) {
       console.error('Error accepting challenge:', error);
       alert('Failed to accept challenge. Please try again.');
+    } finally {
+      setIsAccepting(false)
+      setChallengeModalOpen(false)
+      setActiveChallenge(null)
     }
   }
 
@@ -596,6 +620,7 @@ export default function Dashboard() {
         type: 'challenge',
         challengeId: challengeRef.id,
         message: `New challenge from ${userData?.username}`,
+        betAmount: betAmount, // Include the bet amount in the notification
         createdAt: new Date().toISOString(),
         read: false
       });
@@ -603,9 +628,13 @@ export default function Dashboard() {
 
       setChallengeModalOpen(false);
       console.log('Challenge created successfully');
+      
+      // Optionally, you can show a success message to the user
+      toast.success('Challenge sent successfully!');
     } catch (error) {
       console.error('Error creating challenge:', error);
       // Show an error message to the user
+      toast.error('Failed to create challenge. Please try again.');
     }
   }
 
@@ -1274,22 +1303,31 @@ export default function Dashboard() {
                             {new Date(notification.createdAt).toLocaleString()}
                           </p>
                           {notification.type === 'challenge' && (
-                            <div className="flex space-x-2 mt-2">
-                              <Button 
-                                size="small" 
-                                onClick={() => handleAcceptChallenge(notification.challengeId)}
-                                className="bg-green-500 hover:bg-green-600 text-white"
-                              >
-                                Accept
-                              </Button>
-                              <Button 
-                                size="small" 
-                                onClick={() => handleDeclineChallenge(notification.challengeId)}
-                                className="bg-red-500 hover:bg-red-600 text-white"
-                              >
-                                Decline
-                              </Button>
-                            </div>
+                            <>
+                              <p className="text-sm font-medium text-yellow-400">
+                                Bet Amount: ${notification.betAmount}
+                              </p>
+                              {isAccepting && notification.challengeId === activeChallenge ? (
+                                <Progress value={acceptProgress} className="w-full mt-2" />
+                              ) : (
+                                <div className="flex space-x-2 mt-2">
+                                  <Button 
+                                    size="small" 
+                                    onClick={() => handleAcceptChallenge(notification.challengeId)}
+                                    className="bg-green-500 hover:bg-green-600 text-white"
+                                  >
+                                    Accept
+                                  </Button>
+                                  <Button 
+                                    size="small" 
+                                    onClick={() => handleDeclineChallenge(notification.challengeId)}
+                                    className="bg-red-500 hover:bg-red-600 text-white"
+                                  >
+                                    Decline
+                                  </Button>
+                                </div>
+                              )}
+                            </>
                           )}
                         </div>
                       </div>
@@ -1306,6 +1344,8 @@ export default function Dashboard() {
         onClose={() => setChallengeModalOpen(false)}
         opponent={selectedOpponent}
         onChallenge={handleChallenge}
+        isAccepting={isAccepting}
+        acceptProgress={acceptProgress}
       />
     </>
   )
