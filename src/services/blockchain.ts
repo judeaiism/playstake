@@ -1,29 +1,33 @@
 import { db } from '@/lib/firebase-admin';
 import crypto from 'crypto';
-import { deriveChildAddress } from '@/lib/hdWallet';
+import { deriveUserAddress } from '@/lib/hdWallet';
 
-const HOT_WALLET_ADDRESS = process.env.NEXT_PUBLIC_HOT_WALLET_ADDRESS;
+export async function getUserDepositAddress(userId: string): Promise<string> {
+  const userDoc = await db.collection('users').doc(userId).get();
+  
+  if (userDoc.exists && userDoc.data()?.depositAddress) {
+    return userDoc.data()?.depositAddress;
+  }
 
-if (!HOT_WALLET_ADDRESS) {
-  throw new Error('NEXT_PUBLIC_HOT_WALLET_ADDRESS is not set in environment variables');
+  const depositAddress = deriveUserAddress(userId);
+
+  await db.collection('users').doc(userId).set({
+    depositAddress: depositAddress
+  }, { merge: true });
+
+  return depositAddress;
 }
 
 export async function generateDepositIdentifier(userId: string): Promise<{ address: string; memo: string }> {
   try {
-    const userDoc = await db.collection('users').doc(userId).get();
-    const depositCount = userDoc.exists ? (userDoc.data()?.depositCount || 0) : 0;
+    const depositAddress = await getUserDepositAddress(userId);
 
     // Generate a unique memo for this deposit
     const memo = crypto.randomBytes(4).toString('hex');
 
-    // Generate a unique address using the HD wallet
-    const depositAddress = deriveChildAddress(depositCount);
-
     await db.collection('users').doc(userId).set({
-      depositCount: depositCount + 1,
       [`deposits.${memo}`]: {
         status: 'pending',
-        address: depositAddress,
         createdAt: new Date()
       }
     }, { merge: true });

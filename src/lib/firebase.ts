@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app'
-import { getAuth } from 'firebase/auth'
-import { getFirestore } from 'firebase/firestore'
+import { getAuth, Auth } from 'firebase/auth'
+import { getFirestore, Firestore } from 'firebase/firestore'
 import { getStorage } from 'firebase/storage'
 
 const firebaseConfig = {
@@ -12,16 +12,8 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 }
 
-let auth, db, storage
+const app = initializeApp(firebaseConfig)
 
-try {
-  const app = initializeApp(firebaseConfig)
-  auth = getAuth(app)
-  db = getFirestore(app)
-  storage = getStorage(app)
-} catch (error) {
-  console.error("Error initializing Firebase:", error)
-  throw error
-}
-
-export { auth, db, storage }
+export const auth: Auth = getAuth(app)
+export const db: Firestore = getFirestore(app)
+export const storage = getStorage(app)

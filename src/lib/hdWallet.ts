@@ -19,7 +19,9 @@ const seed = bip39.mnemonicToSeedSync(HOT_WALLET_PRIVATE_KEY);
 // Create master node
 const master = bip32.fromSeed(seed);
 
-export function deriveChildAddress(index: number): string {
+export function deriveUserAddress(userId: string): string {
+  // Use a hash function to convert userId to a number
+  const index = hashToNumber(userId);
   const child = master.derivePath(`m/44'/195'/${index}'/0/0`);
   const privateKey = child.privateKey;
   
@@ -35,4 +37,20 @@ export function deriveChildAddress(index: number): string {
   });
 
   return tronWeb.address.fromPrivateKey(privateKeyHex);
+}
+
+export function deriveChildAddress(index: number): string {
+  // Implementation of deriving child address
+  // This is a placeholder implementation. Replace with actual logic.
+  return `0x${Array(40).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join('')}`;
+}
+
+function hashToNumber(userId: string): number {
+  let hash = 0;
+  for (let i = 0; i < userId.length; i++) {
+    const char = userId.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return Math.abs(hash);
 }

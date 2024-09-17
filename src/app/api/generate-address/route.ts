@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { generateDepositIdentifier } from '@/services/blockchain';
-import { db } from '@/lib/firebase-admin'; // Make sure this import is correct
 
 export async function POST(req: Request) {
   try {
