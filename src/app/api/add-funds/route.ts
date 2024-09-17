@@ -1,9 +1,6 @@
 import { NextResponse } from 'next/server';
-import { ethers } from 'ethers';
 import { db, admin } from '@/lib/firebase-admin';
 import { verifyTransaction } from '@/services/blockchain';
-
-const INFURA_PROJECT_ID = process.env.INFURA_PROJECT_ID;
 
 export async function POST(req: Request) {
   try {
@@ -13,10 +10,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    const provider = new ethers.providers.InfuraProvider('mainnet', INFURA_PROJECT_ID);
-
-    // Verify the transaction on the blockchain
-    const transactionDetails = await verifyTransaction(provider, transactionHash, amount);
+    // Implement alternative transaction verification logic here
+    const transactionDetails = await verifyTransaction(transactionHash, amount);
 
     if (transactionDetails.isValid) {
       // Update user's balance in Firestore
@@ -34,7 +29,7 @@ export async function POST(req: Request) {
         status: 'completed'
       });
 
-      return NextResponse.json({ success: true, message: `Successfully added ${amount} ETH` });
+      return NextResponse.json({ success: true, message: `Successfully added ${amount}` });
     } else {
       return NextResponse.json({ error: 'Invalid transaction' }, { status: 400 });
     }

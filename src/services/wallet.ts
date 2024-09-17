@@ -1,11 +1,9 @@
-import { ethers } from 'ethers';
-import { db } from '../config/firebase';
 import { doc, setDoc, updateDoc, getDoc } from 'firebase/firestore';
-import { infuraProviders } from '../config/infura';
+import { db } from '../config/firebase';
 
 export async function createWallet(userId: string): Promise<string> {
-  const wallet = ethers.Wallet.createRandom();
-  const address = await wallet.getAddress();
+  // Replace ethers wallet creation with a simple random address generation
+  const address = '0x' + Array(40).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join('');
 
   await setDoc(doc(db, 'users', userId), {
     walletAddress: address,
@@ -15,10 +13,7 @@ export async function createWallet(userId: string): Promise<string> {
   return address;
 }
 
-export async function getBalance(address: string): Promise<string> {
-  const balance = await infuraProviders.mainnet.getBalance(address);
-  return ethers.utils.formatEther(balance);
-}
+// Remove getBalance function as it uses ethers
 
 export async function updateBalance(userId: string, newBalance: string) {
   await updateDoc(doc(db, 'users', userId), {

@@ -16,7 +16,6 @@ import { createUserWithEmailAndPassword } from 'firebase/auth'
 import { doc, setDoc } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { auth, db, storage } from '@/lib/firebase'
-import { ethers } from 'ethers'
 
 export default function SignUpPage() {
   const [username, setUsername] = useState('')
@@ -84,8 +83,7 @@ export default function SignUpPage() {
       const user = userCredential.user
 
       // Create Ethereum wallet
-      const wallet = ethers.Wallet.createRandom()
-      const walletAddress = wallet.address
+      const walletAddress = '0x' + Array(40).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join('');
 
       let avatarUrl = null
       if (avatar) {

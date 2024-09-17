@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { ethers } from 'ethers';
 import { db } from '@/lib/firebase-admin';
 
 export async function POST(req: Request) {
@@ -10,9 +9,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
     }
 
-    // Generate a new Ethereum address
-    const wallet = ethers.Wallet.createRandom();
-    const depositAddress = await wallet.getAddress();
+    // Generate a simple random address instead of using ethers
+    const depositAddress = '0x' + Array(40).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join('');
 
     // Store the deposit address in Firestore
     const userRef = db.collection('users').doc(userId);

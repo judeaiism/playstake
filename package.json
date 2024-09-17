@@ -41,7 +41,6 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "cobe": "^0.6.3",
-    "ethers": "^5.7.2",
     "firebase": "^10.13.1",
     "firebase-admin": "^12.5.0",
     "framer-motion": "^11.5.4",

@@ -1,16 +1,11 @@
-import { infuraProviders } from '@/config/infura';
 import { updateBalance } from './wallet';
-import { ethers } from 'ethers';
 import { createNotification } from './notifications';
 
+// This function needs to be reimplemented without ethers
 export function startTransactionMonitor(address: string, userId: string) {
-  infuraProviders.mainnet.on(address, async (balance: ethers.BigNumber) => {
-    const newBalance = ethers.utils.formatEther(balance);
-    await updateBalance(userId, newBalance);
-    await createNotification(userId, `Your wallet balance has been updated to ${newBalance} ETH`);
-  });
+  // Implement alternative monitoring logic here
 }
 
 export function stopTransactionMonitor(address: string) {
-  infuraProviders.mainnet.removeAllListeners(address);
+  // Implement alternative stop monitoring logic here
 }
