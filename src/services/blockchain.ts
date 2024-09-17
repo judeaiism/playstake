@@ -1,38 +1,33 @@
-import { ethers } from 'ethers';
+import TronWeb from 'tronweb';
 
-export async function verifyTransaction(
-  provider: ethers.providers.Provider,
-  transactionHash: string,
-  expectedAmount: string
-): Promise<{ isValid: boolean; details?: any }> {
+if (!process.env.TRON_FULL_NODE_URL || !process.env.TRON_PRIVATE_KEY) {
+  throw new Error('TRON_FULL_NODE_URL and TRON_PRIVATE_KEY must be set in the environment variables');
+}
+
+const tronWeb = new TronWeb({
+  fullHost: process.env.TRON_FULL_NODE_URL,
+  privateKey: process.env.TRON_PRIVATE_KEY
+});
+
+export async function verifyTronTransaction(depositAddress: string, expectedAmount: number) {
   try {
-    const transaction = await provider.getTransaction(transactionHash);
-    if (!transaction) {
-      return { isValid: false };
+    // Get the latest transactions for the deposit address
+    const transactions = await tronWeb.trx.getTransactionsRelated(depositAddress, 'to', 10);
+
+    for (const tx of transactions) {
+      if (tx.raw_data.contract[0].type === 'TransferContract') {
+        const contractParams = tx.raw_data.contract[0].parameter.value;
+        const amount = tronWeb.fromSun(contractParams.amount);
+
+        if (contractParams.to_address === depositAddress && amount === expectedAmount) {
+          return { isValid: true, transactionHash: tx.txID };
+        }
+      }
     }
 
-    // Wait for the transaction to be mined
-    const receipt = await transaction.wait();
-
-    if (receipt.status === 0) {
-      return { isValid: false };
-    }
-
-    const amountInWei = ethers.utils.parseEther(expectedAmount);
-    const isAmountCorrect = transaction.value.eq(amountInWei);
-
-    return {
-      isValid: isAmountCorrect,
-      details: {
-        from: transaction.from,
-        to: transaction.to,
-        amount: ethers.utils.formatEther(transaction.value),
-        blockNumber: receipt.blockNumber,
-        confirmations: receipt.confirmations,
-      },
-    };
-  } catch (error) {
-    console.error('Error verifying transaction:', error);
     return { isValid: false };
+  } catch (error) {
+    console.error('Error verifying TRON transaction:', error);
+    throw error;
   }
 }
