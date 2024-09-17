@@ -9,9 +9,7 @@ export async function monitorDeposits() {
     const transactions = await getTronTransactions(HOT_WALLET_ADDRESS!, lastCheckedTimestamp);
 
     for (const tx of transactions) {
-      if (tx.to === HOT_WALLET_ADDRESS) {
-        await processDeposit(tx);
-      }
+      await processDeposit(tx);
     }
 
     if (transactions.length > 0) {
@@ -23,32 +21,27 @@ export async function monitorDeposits() {
 }
 
 async function processDeposit(tx: any) {
-  const memoDoc = await db.collection('memos').doc(tx.memo).get();
+  const userQuery = await db.collection('users').where('depositAddress', '==', tx.to).get();
 
-  if (memoDoc.exists) {
-    const data = memoDoc.data();
-    if (data && !data.used) {
-      const userId = data.userId;
-      const amount = tx.amount;
+  if (!userQuery.empty) {
+    const userDoc = userQuery.docs[0];
+    const userId = userDoc.id;
+    const amount = tx.amount;
 
-      // Update user's balance
-      await db.collection('users').doc(userId).update({
-        balance: admin.firestore.FieldValue.increment(amount)
-      });
+    // Update user's balance
+    await db.collection('users').doc(userId).update({
+      balance: admin.firestore.FieldValue.increment(amount)
+    });
 
-      // Mark memo as used
-      await memoDoc.ref.update({ used: true });
-
-      // Log the transaction
-      await db.collection('transactions').add({
-        userId,
-        amount,
-        transactionHash: tx.hash,
-        memo: tx.memo,
-        timestamp: admin.firestore.FieldValue.serverTimestamp(),
-        status: 'completed'
-      });
-    }
+    // Log the transaction
+    await db.collection('transactions').add({
+      userId,
+      amount,
+      transactionHash: tx.hash,
+      depositAddress: tx.to,
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      status: 'completed'
+    });
   }
 }
 

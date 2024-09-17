@@ -12,9 +12,16 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 }
 
-const app = initializeApp(firebaseConfig)
-const auth = getAuth(app)
-const db = getFirestore(app)
-const storage = getStorage(app)
+let auth, db, storage
+
+try {
+  const app = initializeApp(firebaseConfig)
+  auth = getAuth(app)
+  db = getFirestore(app)
+  storage = getStorage(app)
+} catch (error) {
+  console.error("Error initializing Firebase:", error)
+  throw error
+}
 
 export { auth, db, storage }

@@ -22,54 +22,49 @@ export default function AddFundsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const fetchUniqueAddress = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      if (!user) {
+        throw new Error('User is not authenticated');
+      }
+
+      const response = await fetch('/api/generate-address', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId: user.uid }),
+      });
+      
+      if (!response.ok) {
+        const text = await response.text(); // Get the response as text
+        console.error('Error response:', text); // Log the full response
+        throw new Error(`HTTP error! status: ${response.status}, body: ${text}`);
+      }
+
+      const data = await response.json();
+      setWalletAddress(data.address);
+      setMemo(data.memo);
+    } catch (error) {
+      console.error('Error generating unique address:', error);
+      setError(error instanceof Error ? error.message : 'Failed to generate unique address. Please try again later.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (user) {
-      const generateMemo = async () => {
-        try {
-          const response = await fetch('/api/generate-memo', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: user.uid }),
-          });
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-          const data = await response.json();
-          setMemo(data.memo);
-        } catch (error) {
-          console.error('Error generating memo:', error);
-          toast({
-            title: 'Error',
-            description: 'Failed to generate memo. Please try again.',
-            variant: 'destructive',
-          });
-        }
-      };
-      generateMemo();
+      fetchUniqueAddress();
+    } else {
+      setWalletAddress('');
+      setMemo('');
+      setError('Please sign in to generate a deposit address.');
     }
-  }, [user, toast]);
-
-  useEffect(() => {
-    const fetchWalletAddress = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        const response = await fetch('/api/wallet-address');
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        setWalletAddress(data.address || '');
-      } catch (error) {
-        console.error('Error fetching wallet address:', error);
-        setError('Failed to fetch wallet address. Please try again later.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchWalletAddress();
-  }, []);
+  }, [user]);
 
   const handleCopyAddress = () => {
     if (walletAddress) {
@@ -113,7 +108,7 @@ export default function AddFundsPage() {
             </Button>
           </div>
           <div className="mb-4">
-            <Label htmlFor="memo">Memo (Required)</Label>
+            <Label htmlFor="memo">Memo (Optional)</Label>
             <div className="flex items-center">
               <Input
                 id="memo"
@@ -126,7 +121,7 @@ export default function AddFundsPage() {
               </Button>
             </div>
             <p className="text-sm text-gray-500 mt-1">
-              You must include this memo with your transaction for us to credit your account.
+              If your wallet supports memos, please include this memo with your transaction. If not, you can ignore it.
             </p>
           </div>
           <Select

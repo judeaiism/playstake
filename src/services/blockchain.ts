@@ -1,58 +1,46 @@
-import TronWeb from 'tronweb';
+import { db } from '@/lib/firebase-admin';
+import crypto from 'crypto';
+import { deriveChildAddress } from '@/lib/hdWallet';
 
-// Define a custom type for our TronWeb instance
-interface CustomTronWeb extends TronWeb {
-  trx: {
-    getTransactionsRelated: (address: string, direction: string, limit: number) => Promise<any[]>;
-  };
-  fromSun: (sun: number | string) => number;
+const HOT_WALLET_ADDRESS = process.env.NEXT_PUBLIC_HOT_WALLET_ADDRESS;
+
+if (!HOT_WALLET_ADDRESS) {
+  throw new Error('NEXT_PUBLIC_HOT_WALLET_ADDRESS is not set in environment variables');
 }
 
-if (!process.env.TRON_FULL_NODE_URL || !process.env.TRON_PRIVATE_KEY) {
-  throw new Error('TRON_FULL_NODE_URL and TRON_PRIVATE_KEY must be set in the environment variables');
-}
-
-const tronWeb = new TronWeb({
-  fullHost: process.env.TRON_FULL_NODE_URL,
-  privateKey: process.env.TRON_PRIVATE_KEY
-}) as CustomTronWeb;
-
-export async function verifyTronTransaction(depositAddress: string, expectedAmount: number) {
+export async function generateDepositIdentifier(userId: string): Promise<{ address: string; memo: string }> {
   try {
-    // Get the latest transactions for the deposit address
-    const transactions = await tronWeb.trx.getTransactionsRelated(depositAddress, 'to', 10);
+    const userDoc = await db.collection('users').doc(userId).get();
+    const depositCount = userDoc.exists ? (userDoc.data()?.depositCount || 0) : 0;
 
-    for (const tx of transactions) {
-      if (tx.raw_data.contract[0].type === 'TransferContract') {
-        const contractParams = tx.raw_data.contract[0].parameter.value;
-        const amount = tronWeb.fromSun(contractParams.amount);
+    // Generate a unique memo for this deposit
+    const memo = crypto.randomBytes(4).toString('hex');
 
-        if (contractParams.to_address === depositAddress && amount === expectedAmount) {
-          return { isValid: true, transactionHash: tx.txID };
-        }
+    // Generate a unique address using the HD wallet
+    const depositAddress = deriveChildAddress(depositCount);
+
+    await db.collection('users').doc(userId).set({
+      depositCount: depositCount + 1,
+      [`deposits.${memo}`]: {
+        status: 'pending',
+        address: depositAddress,
+        createdAt: new Date()
       }
-    }
+    }, { merge: true });
 
-    return { isValid: false };
+    return {
+      address: depositAddress,
+      memo: memo
+    };
   } catch (error) {
-    console.error('Error verifying TRON transaction:', error);
+    console.error('Error in generateDepositIdentifier:', error);
     throw error;
   }
 }
 
-export async function getTronTransactions(address: string, startTimestamp: number): Promise<any[]> {
-  // Implement the logic to fetch Tron transactions
-  // This is a placeholder implementation
-  const transactions = [
-    // Sample transaction data
-    {
-      to: address,
-      amount: 100,
-      hash: '0x123...',
-      memo: 'sample-memo',
-      timestamp: Date.now(),
-    },
-  ];
-
-  return transactions.filter(tx => tx.timestamp > startTimestamp);
+// Placeholder for transaction verification
+export async function verifyTronTransaction(transactionHash: string, amount: string, memo: string) {
+  // Implement actual verification logic when you have a way to interact with the Tron blockchain
+  console.warn('Transaction verification not implemented');
+  return { isValid: false, reason: 'Verification not implemented' };
 }

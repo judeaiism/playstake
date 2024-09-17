@@ -11,7 +11,7 @@ interface TransactionDetails {
   transactionHash?: string;
 }
 
-export async function verifyTronTransaction(depositAddress: string, expectedAmount: string): Promise<TransactionDetails> {
+export async function verifyTronTransaction(transactionHash: string, amount: string, toAddress: string): Promise<TransactionDetails> {
   try {
     // Implement the logic to verify the transaction on the TRON blockchain
     // This is a placeholder implementation and should be replaced with actual TRON blockchain interaction

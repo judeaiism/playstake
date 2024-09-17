@@ -1,4 +1,4 @@
-import * as functions from 'firebase-functions';
+import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { db } from './firebase-admin';
 import { getTronTransactions } from './blockchain-service';
 
@@ -9,7 +9,7 @@ interface TronTransaction {
   memo: string;
 }
 
-export const checkTronDeposits = functions.pubsub.schedule('every 5 minutes').onRun(async (context) => {
+export const checkTronDeposits = onSchedule('every 5 minutes', async (event) => {
   const lastCheckedTimestamp = await getLastCheckedTimestamp();
   const newTransactions = await getTronTransactions(lastCheckedTimestamp);
 

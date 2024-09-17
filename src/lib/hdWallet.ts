@@ -1,12 +1,12 @@
 import { BIP32Factory } from 'bip32';
 import * as bip39 from 'bip39';
 import TronWeb from 'tronweb';
+import * as ecc from 'tiny-secp256k1';
 
-// We'll use a type assertion for ecc since tiny-secp256k1 doesn't have type declarations
-const ecc = require('tiny-secp256k1') as any;
-
+// Create a bip32 instance using the BIP32Factory
 const bip32 = BIP32Factory(ecc);
 
+// We'll use a type assertion for ecc since tiny-secp256k1 doesn't have type declarations
 const HOT_WALLET_PRIVATE_KEY = process.env.HOT_WALLET_PRIVATE_KEY;
 
 if (!HOT_WALLET_PRIVATE_KEY) {
