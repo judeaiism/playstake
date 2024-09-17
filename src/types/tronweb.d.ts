@@ -1,14 +1,8 @@
 declare module 'tronweb' {
   export default class TronWeb {
-    constructor(options: {
-      fullHost: string;
-      privateKey: string;
-    });
-
-    trx: {
-      getTransactionsRelated(address: string, direction: string, limit: number): Promise<any[]>;
+    constructor(options: { fullHost: string; privateKey: string });
+    address: {
+      fromPrivateKey(privateKey: string): string;
     };
-
-    fromSun(amount: number): number;
   }
 }

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db, admin } from '@/lib/firebase-admin';
-import { verifyTransaction } from '@/services/blockchain';
+import { verifyTronTransaction } from '@/services/blockchain';
 
 export async function POST(req: Request) {
   try {
@@ -10,8 +10,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Implement alternative transaction verification logic here
-    const transactionDetails = await verifyTransaction(transactionHash, amount);
+    // Use the correct function name here
+    const transactionDetails = await verifyTronTransaction(transactionHash, amount);
 
     if (transactionDetails.isValid) {
       // Update user's balance in Firestore

@@ -1,12 +1,15 @@
 'use client'
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label'; // Add this import
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 const HOT_WALLET_ADDRESS = process.env.NEXT_PUBLIC_HOT_WALLET_ADDRESS;
 
@@ -14,10 +17,43 @@ export default function AddFundsPage() {
   const { toast } = useToast();
   const { user } = useAuth();
   const [selectedToken, setSelectedToken] = useState('TRX');
+  const [derivedAddress, setDerivedAddress] = useState('');
+  const [walletAddress, setWalletAddress] = useState(''); // Initialize with an empty string
+
+  useEffect(() => {
+    if (user) {
+      const fetchDerivedAddress = async () => {
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists()) {
+          setDerivedAddress(userDoc.data().derivedAddress || ''); // Ensure it's always a string
+        }
+      };
+      fetchDerivedAddress();
+    }
+  }, [user]);
+
+  useEffect(() => {
+    const fetchWalletAddress = async () => {
+      try {
+        setWalletAddress('Loading...'); // Set a loading state
+        const response = await fetch('/api/wallet-address');
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        setWalletAddress(data.address || ''); // Ensure it's always a string
+      } catch (error) {
+        console.error('Error fetching wallet address:', error);
+        setWalletAddress('Error fetching address');
+      }
+    };
+
+    fetchWalletAddress();
+  }, []);
 
   const handleCopyAddress = () => {
-    if (HOT_WALLET_ADDRESS) {
-      navigator.clipboard.writeText(HOT_WALLET_ADDRESS);
+    if (derivedAddress) {
+      navigator.clipboard.writeText(derivedAddress);
       toast({
         title: 'Address Copied',
         description: 'The deposit address has been copied to your clipboard.',
@@ -37,7 +73,7 @@ export default function AddFundsPage() {
           <p className="mb-4">Send {selectedToken} to the following address:</p>
           <div className="flex items-center mb-4">
             <Input
-              value={HOT_WALLET_ADDRESS}
+              value={derivedAddress}
               readOnly
               className="flex-grow mr-2"
             />
@@ -63,6 +99,17 @@ export default function AddFundsPage() {
           <p className="text-sm text-gray-500">
             Important: Only send {selectedToken} to this address. Sending any other token may result in permanent loss.
           </p>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="wallet-address">Wallet Address</Label>
+              <Input
+                id="wallet-address"
+                value={walletAddress}
+                readOnly
+                className="font-mono"
+              />
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>

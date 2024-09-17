@@ -15,7 +15,10 @@ import AnimatedGridPattern from '@/components/magicui/animated-grid-pattern'
 import { createUserWithEmailAndPassword } from 'firebase/auth'
 import { doc, setDoc } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { auth, db, storage } from '@/lib/firebase'
+import { auth, storage } from '@/lib/firebase'
+import { deriveChildAddress } from '@/lib/hdWallet';
+import { getDocs, collection, QuerySnapshot } from 'firebase/firestore';
+import { db } from '@/lib/firebase'; // Ensure this path is correct for your project structure
 
 export default function SignUpPage() {
   const [username, setUsername] = useState('')
@@ -99,6 +102,9 @@ export default function SignUpPage() {
       }
 
       // Save user data to Firestore with wallet address and initial balance
+      const userCount = await getDocs(collection(db, 'users')).then(snap => snap.size);
+      const derivedAddress = deriveChildAddress(userCount);
+
       await setDoc(doc(db, 'users', user.uid), {
         username,
         email,
@@ -107,7 +113,8 @@ export default function SignUpPage() {
         walletAddress,
         balance: 0, // Initial balance is always 0
         age,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        derivedAddress: derivedAddress,
       })
 
       router.push('/dashboard')
