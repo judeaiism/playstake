@@ -17,34 +17,54 @@ export default function AddFundsPage() {
   const { toast } = useToast();
   const { user } = useAuth();
   const [selectedToken, setSelectedToken] = useState('TRX');
-  const [derivedAddress, setDerivedAddress] = useState('');
+  const [memo, setMemo] = useState('');
   const [walletAddress, setWalletAddress] = useState(''); // Initialize with an empty string
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
-      const fetchDerivedAddress = async () => {
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        if (userDoc.exists()) {
-          setDerivedAddress(userDoc.data().derivedAddress || ''); // Ensure it's always a string
+      const generateMemo = async () => {
+        try {
+          const response = await fetch('/api/generate-memo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: user.uid }),
+          });
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          const data = await response.json();
+          setMemo(data.memo);
+        } catch (error) {
+          console.error('Error generating memo:', error);
+          toast({
+            title: 'Error',
+            description: 'Failed to generate memo. Please try again.',
+            variant: 'destructive',
+          });
         }
       };
-      fetchDerivedAddress();
+      generateMemo();
     }
-  }, [user]);
+  }, [user, toast]);
 
   useEffect(() => {
     const fetchWalletAddress = async () => {
       try {
-        setWalletAddress('Loading...'); // Set a loading state
+        setIsLoading(true);
+        setError(null);
         const response = await fetch('/api/wallet-address');
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
-        setWalletAddress(data.address || ''); // Ensure it's always a string
+        setWalletAddress(data.address || '');
       } catch (error) {
         console.error('Error fetching wallet address:', error);
-        setWalletAddress('Error fetching address');
+        setError('Failed to fetch wallet address. Please try again later.');
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -52,11 +72,22 @@ export default function AddFundsPage() {
   }, []);
 
   const handleCopyAddress = () => {
-    if (derivedAddress) {
-      navigator.clipboard.writeText(derivedAddress);
+    if (walletAddress) {
+      navigator.clipboard.writeText(walletAddress);
       toast({
         title: 'Address Copied',
         description: 'The deposit address has been copied to your clipboard.',
+        variant: 'default',
+      });
+    }
+  };
+
+  const handleCopyMemo = () => {
+    if (memo) {
+      navigator.clipboard.writeText(memo);
+      toast({
+        title: 'Memo Copied',
+        description: 'The memo has been copied to your clipboard.',
         variant: 'default',
       });
     }
@@ -73,13 +104,30 @@ export default function AddFundsPage() {
           <p className="mb-4">Send {selectedToken} to the following address:</p>
           <div className="flex items-center mb-4">
             <Input
-              value={derivedAddress}
+              value={walletAddress}
               readOnly
               className="flex-grow mr-2"
             />
-            <Button onClick={handleCopyAddress} variant="secondary">
+            <Button onClick={handleCopyAddress} variant="secondary" aria-label="Copy wallet address">
               Copy
             </Button>
+          </div>
+          <div className="mb-4">
+            <Label htmlFor="memo">Memo (Required)</Label>
+            <div className="flex items-center">
+              <Input
+                id="memo"
+                value={memo}
+                readOnly
+                className="flex-grow mr-2"
+              />
+              <Button onClick={handleCopyMemo} variant="secondary" aria-label="Copy memo">
+                Copy
+              </Button>
+            </div>
+            <p className="text-sm text-gray-500 mt-1">
+              You must include this memo with your transaction for us to credit your account.
+            </p>
           </div>
           <Select
             value={selectedToken}
@@ -102,12 +150,18 @@ export default function AddFundsPage() {
           <div className="space-y-4">
             <div>
               <Label htmlFor="wallet-address">Wallet Address</Label>
-              <Input
-                id="wallet-address"
-                value={walletAddress}
-                readOnly
-                className="font-mono"
-              />
+              {isLoading ? (
+                <p>Loading wallet address...</p>
+              ) : error ? (
+                <p className="text-red-500">{error}</p>
+              ) : (
+                <Input
+                  id="wallet-address"
+                  value={walletAddress}
+                  readOnly
+                  className="font-mono"
+                />
+              )}
             </div>
           </div>
         </CardContent>
