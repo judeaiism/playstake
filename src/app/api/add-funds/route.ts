@@ -4,14 +4,14 @@ import { verifyTronTransaction } from '@/services/blockchain';
 
 export async function POST(req: Request) {
   try {
-    const { userId, amount, transactionHash } = await req.json();
+    const { userId, amount, transactionHash, memo } = await req.json();
 
     if (!userId || !amount || !transactionHash) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Use the correct function name here
-    const transactionDetails = await verifyTronTransaction(transactionHash, amount);
+    // Include the memo in the function call
+    const transactionDetails = await verifyTronTransaction(transactionHash, amount, memo);
 
     if (transactionDetails.isValid) {
       // Update user's balance in Firestore

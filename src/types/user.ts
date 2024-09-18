@@ -1,6 +1,7 @@
-import { User as FirebaseUser } from 'firebase/auth'
+import { User as FirebaseUser } from 'firebase/auth';
 
 export interface User extends FirebaseUser {
-  balance?: number
-  // Add any other custom properties your app uses
+  email: string | null;
+  displayName: string | null;
+  walletAddress?: string; // Add this line
 }

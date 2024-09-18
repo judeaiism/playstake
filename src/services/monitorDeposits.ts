@@ -1,21 +1,32 @@
 import { db, admin } from '@/lib/firebase-admin';
-import { getTronTransactions } from '@/services/blockchain';
+import getTronTransactions from '@/services/blockchain';
+import { logger } from '@/lib/logger'; // Changed to named import
 
 const HOT_WALLET_ADDRESS = process.env.HOT_WALLET_ADDRESS;
 
 export async function monitorDeposits() {
   try {
+    logger.info('Starting deposit monitoring');
     const lastCheckedTimestamp = await getLastCheckedTimestamp();
     const transactions = await getTronTransactions(HOT_WALLET_ADDRESS!, lastCheckedTimestamp);
 
+    logger.info(`Found ${transactions.length} new transactions`);
+
     for (const tx of transactions) {
-      await processDeposit(tx);
+      try {
+        await processDeposit(tx);
+      } catch (processError) {
+        logger.error(`Error processing deposit for transaction ${tx.hash}:`, processError);
+      }
     }
 
     if (transactions.length > 0) {
       await updateLastCheckedTimestamp(transactions[transactions.length - 1].timestamp);
     }
+    
+    logger.info('Deposit monitoring completed');
   } catch (error) {
+    logger.error('Error monitoring deposits:', error);
     console.error('Error monitoring deposits:', error);
   }
 }

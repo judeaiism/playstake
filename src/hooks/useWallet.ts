@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from './useAuth';
-import { getBalance, updateBalance } from '@/services/wallet';
+import { updateBalance } from '@/services/wallet';
 import { startTransactionMonitor, stopTransactionMonitor } from '@/services/transactionMonitor';
+import { getBalance } from '@/services/blockchain';
+import { User } from '@/types/user';
 
 export function useWallet() {
   const { user } = useAuth();
@@ -9,7 +11,7 @@ export function useWallet() {
 
   const fetchBalance = useCallback(async () => {
     if (user?.walletAddress) {
-      const newBalance = await getBalance(user.walletAddress as string);
+      const newBalance = await getBalance(user.walletAddress);
       setBalance(newBalance);
       await updateBalance(user.uid, newBalance);
     }
@@ -18,10 +20,12 @@ export function useWallet() {
   useEffect(() => {
     if (user?.walletAddress) {
       fetchBalance();
-      startTransactionMonitor(user.walletAddress as string, user.uid);
+      startTransactionMonitor(user.walletAddress, user.uid);
 
       return () => {
-        stopTransactionMonitor(user.walletAddress as string);
+        if (user.walletAddress) {
+          stopTransactionMonitor(user.walletAddress);
+        }
       };
     }
   }, [user, fetchBalance]);

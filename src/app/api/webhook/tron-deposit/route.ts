@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase-admin';
 import { verifyTronTransaction } from '@/services/tron-blockchain';
+import { logger } from '@/lib/logger'; // Implement a centralized logger
 
 export async function POST(req: Request) {
   try {
     const { transactionHash, toAddress, amount, memo } = await req.json();
+    logger.info(`Received deposit webhook: ${JSON.stringify({ transactionHash, toAddress, amount, memo })}`);
 
     // Verify the transaction
     const transactionDetails = await verifyTronTransaction(transactionHash, amount, toAddress);
@@ -61,7 +63,11 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true, message: 'Deposit processed successfully' });
   } catch (error) {
-    console.error('Error processing deposit:', error);
-    return NextResponse.json({ error: 'Failed to process deposit' }, { status: 500 });
+    logger.error('Error processing deposit:', error);
+    if (error instanceof Error) {
+      return NextResponse.json({ error: 'Failed to process deposit', details: error.message }, { status: 500 });
+    } else {
+      return NextResponse.json({ error: 'Failed to process deposit', details: 'Unknown error' }, { status: 500 });
+    }
   }
 }

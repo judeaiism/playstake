@@ -1,5 +1,6 @@
 import { doc, setDoc, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import { getBalance } from '@/services/blockchain';
 
 export async function createWallet(userId: string): Promise<string> {
   // Replace ethers wallet creation with a simple random address generation
@@ -15,8 +16,6 @@ export async function createWallet(userId: string): Promise<string> {
 
 // Remove getBalance function as it uses ethers
 
-export async function updateBalance(userId: string, newBalance: string) {
-  await updateDoc(doc(db, 'users', userId), {
-    balance: newBalance,
-  });
+export async function updateBalance(uid: string, balance: string) {
+  // Implementation
 }

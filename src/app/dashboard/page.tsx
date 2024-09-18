@@ -10,7 +10,7 @@ import BoxReveal from "@/components/magicui/box-reveal"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Award, Gamepad, ChevronRight, DollarSign, PlusCircle, MinusCircle, Search, Percent, User, Settings, LogOut, BellIcon, CheckIcon, CheckCircle } from "lucide-react"
+import { Award, Gamepad, ChevronRight, DollarSign, PlusCircle, MinusCircle, Search, Percent, User as UserIcon, Settings, LogOut, BellIcon, CheckIcon, CheckCircle } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -56,6 +56,7 @@ import { signOut } from '@/lib/auth'
 import { onAuthStateChanged } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
 import { toast } from 'react-hot-toast'
+import { User } from '@/types/user';
 
 const profileFormSchema = z.object({
   username: z.string().min(2, {
@@ -117,6 +118,7 @@ export default function Dashboard() {
   }>>([])
   const [notifications, setNotifications] = useState<any[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<string[]>([])
+  const [transactionStatus, setTransactionStatus] = useState<string | null>(null);
 
   const form = useForm<z.infer<typeof profileFormSchema>>({
     resolver: zodResolver(profileFormSchema),
@@ -208,7 +210,7 @@ export default function Dashboard() {
               })
             } else {
               const newUserData = {
-                email: user.email,
+                email: user.email || '',
                 username: user.displayName || user.email?.split('@')[0] || 'User',
                 psnName: "",
                 createdAt: new Date().toISOString(),
@@ -642,22 +644,25 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (user) {
-      const userRef = doc(db, 'users', user.uid)
+      const userRef = doc(db, 'users', user.uid);
       const unsubscribe = onSnapshot(userRef, (doc) => {
         if (doc.exists()) {
-          setBalance(doc.data().balance || 0)
+          setBalance(doc.data().balance || 0);
+          if (doc.data().lastTransaction) {
+            setTransactionStatus(`Last transaction: ${doc.data().lastTransaction.status}`);
+          }
         } else {
-          console.error('User document not found')
-          toast.error('Failed to load user data')
+          console.error('User document not found');
+          toast.error('Failed to load user data');
         }
       }, (error) => {
-        console.error('Error fetching user data:', error)
-        toast.error('Failed to load user data')
-      })
+        console.error('Error fetching user data:', error);
+        toast.error('Failed to load user data');
+      });
 
-      return () => unsubscribe()
+      return () => unsubscribe();
     }
-  }, [user])
+  }, [user]);
 
   if (authLoading || loading) {
     return (
@@ -830,7 +835,7 @@ export default function Dashboard() {
                     <Sheet>
                       <SheetTrigger asChild>
                         <DropdownMenuItem className="text-white hover:bg-purple-700" onSelect={(e) => e.preventDefault()}>
-                          <User className="mr-2 h-4 w-4" />
+                          <UserIcon className="mr-2 h-4 w-4" />
                           <span>Profile</span>
                         </DropdownMenuItem>
                       </SheetTrigger>

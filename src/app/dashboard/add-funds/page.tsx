@@ -8,8 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label'; // Add this import
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const HOT_WALLET_ADDRESS = process.env.NEXT_PUBLIC_HOT_WALLET_ADDRESS;
 
@@ -21,6 +20,7 @@ export default function AddFundsPage() {
   const [walletAddress, setWalletAddress] = useState(''); // Initialize with an empty string
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [transactionStatus, setTransactionStatus] = useState<string | null>(null);
 
   const fetchUniqueAddress = async () => {
     try {
@@ -59,12 +59,52 @@ export default function AddFundsPage() {
   useEffect(() => {
     if (user) {
       fetchUniqueAddress();
+      setupTransactionListener();
     } else {
       setWalletAddress('');
       setMemo('');
       setError('Please sign in to generate a deposit address.');
     }
+
+    return () => {
+      // Clean up the transaction listener when the component unmounts
+      if (transactionListener) {
+        clearInterval(transactionListener);
+      }
+    };
   }, [user]);
+
+  let transactionListener: NodeJS.Timeout | null = null;
+
+  const setupTransactionListener = () => {
+    if (!user || !walletAddress) return;
+
+    transactionListener = setInterval(async () => {
+      try {
+        const response = await fetch('/api/check-transactions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ address: walletAddress, token: selectedToken }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // ... handle transaction status ...
+
+      } catch (error) {
+        console.error('Error checking transactions:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to check transaction status. Please refresh the page.',
+          variant: 'destructive',
+        });
+      }
+    }, 30000);
+  };
 
   const handleCopyAddress = () => {
     if (walletAddress) {
@@ -159,6 +199,12 @@ export default function AddFundsPage() {
               )}
             </div>
           </div>
+          {transactionStatus && (
+            <Alert className="mt-4">
+              <AlertTitle>Transaction Status</AlertTitle>
+              <AlertDescription>{transactionStatus}</AlertDescription>
+            </Alert>
+          )}
         </CardContent>
       </Card>
     </div>
