@@ -1,40 +1,95 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
+import TronWeb from 'tronweb';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label'; // Add this import
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const HOT_WALLET_ADDRESS = process.env.NEXT_PUBLIC_HOT_WALLET_ADDRESS;
 
+// Initialize TronWeb
+const tronWeb = new TronWeb({
+  fullHost: process.env.NEXT_PUBLIC_TRON_FULL_HOST || 'https://api.trongrid.io',
+  privateKey: '' // Add an empty string as a placeholder for the private key
+});
+
+// Set the API key separately
+if (process.env.NEXT_PUBLIC_TRON_API_KEY) {
+  (tronWeb as any).setHeader({"TRON-PRO-API-KEY": process.env.NEXT_PUBLIC_TRON_API_KEY});
+}
+
+console.log('TronWeb fullHost:', process.env.NEXT_PUBLIC_TRON_FULL_HOST);
+console.log('TronWeb API Key set:', !!process.env.NEXT_PUBLIC_TRON_API_KEY);
+
+// After TronWeb initialization
+console.log('TronWeb initialized');
+
+async function checkTransactionOnBlockchain(txHash: string, retries = 3): Promise<any> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      console.log(`Attempt ${i + 1} to check transaction ${txHash}`);
+      const tx = await (tronWeb as any).trx.getTransaction(txHash);
+      console.log('Transaction data:', JSON.stringify(tx, null, 2));
+      if (tx && tx.ret && tx.ret[0].contractRet === 'SUCCESS') {
+        return { status: 'confirmed', data: tx };
+      } else if (tx) {
+        return { status: 'pending', data: tx };
+      }
+    } catch (error) {
+      console.error(`Attempt ${i + 1} failed:`, error);
+    }
+    // Wait for 5 seconds before the next retry
+    await new Promise(resolve => setTimeout(resolve, 5000));
+  }
+  return { status: 'not_found', message: 'Transaction not found on the blockchain after multiple attempts.' };
+}
+
+async function checkTransactionOnExplorer(txHash: string) {
+  try {
+    const response = await fetch(`https://apilist.tronscan.org/api/transaction-info?hash=${txHash}`);
+    const data = await response.json();
+    if (data && data.confirmed) {
+      return { status: 'confirmed', data };
+    } else if (data) {
+      return { status: 'pending', data };
+    }
+  } catch (error) {
+    console.error('Error checking transaction on explorer:', error);
+  }
+  return { status: 'not_found', message: 'Transaction not found on the explorer.' };
+}
+
 export default function AddFundsPage() {
   const { toast } = useToast();
   const { user } = useAuth();
   const [selectedToken, setSelectedToken] = useState('TRX');
   const [memo, setMemo] = useState('');
-  const [walletAddress, setWalletAddress] = useState(''); // Initialize with an empty string
+  const [walletAddress, setWalletAddress] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [transactionStatus, setTransactionStatus] = useState<string | null>(null);
   const [amount, setAmount] = useState('');
   const [transactionHash, setTransactionHash] = useState('');
-
-  const transactionListenerRef = useRef<NodeJS.Timeout | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
 
   const fetchUniqueAddress = async () => {
     try {
+      console.log('Fetching unique address...');
       setIsLoading(true);
       setError(null);
 
       if (!user) {
+        console.log('User is not authenticated');
         throw new Error('User is not authenticated');
       }
 
+      console.log('Sending request to /api/generate-address');
       const response = await fetch('/api/generate-address', {
         method: 'POST',
         headers: {
@@ -43,13 +98,17 @@ export default function AddFundsPage() {
         body: JSON.stringify({ userId: user.uid }),
       });
       
+      console.log('Response received:', response.status);
+      
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Error response:', errorData);
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.error}, details: ${errorData.details || 'No details provided'}`);
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
       }
 
       const data = await response.json();
+      console.log('Response data:', data);
+      
       if (data.error) {
         throw new Error(data.error);
       }
@@ -64,52 +123,15 @@ export default function AddFundsPage() {
   };
 
   useEffect(() => {
+    console.log('User state changed:', user);
     if (user) {
       fetchUniqueAddress();
-      setupTransactionListener();
     } else {
       setWalletAddress('');
       setMemo('');
       setError('Please sign in to generate a deposit address.');
     }
-
-    return () => {
-      // Clean up the transaction listener using the ref
-      if (transactionListenerRef.current) {
-        clearInterval(transactionListenerRef.current);
-      }
-    };
   }, [user]);
-
-  const setupTransactionListener = () => {
-    if (!user || !walletAddress) return;
-
-    transactionListenerRef.current = setInterval(async () => {
-      try {
-        const response = await fetch('/api/check-transactions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ address: walletAddress, token: selectedToken }),
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        // ... handle transaction status ...
-
-      } catch (error) {
-        console.error('Error checking transactions:', error);
-        toast({
-          title: 'Error',
-          description: 'Failed to check transaction status. Please refresh the page.',
-          variant: 'destructive',
-        });
-      }
-    }, 30000);
-  };
 
   const handleCopyAddress = () => {
     if (walletAddress) {
@@ -133,57 +155,78 @@ export default function AddFundsPage() {
     }
   };
 
-  const checkAndUpdateBalance = async () => {
-    if (!user || !transactionHash || !amount) return;
+  const checkAndUpdateBalance = async (manualAmount?: string, manualHash?: string) => {
+    if (!user) return;
 
-    console.log('Memo value:', memo);
+    const amountToUse = manualAmount || amount;
+    const hashToUse = manualHash || transactionHash;
+
+    console.log('Checking transaction:', { hash: hashToUse, amount: amountToUse });
 
     try {
-      setIsLoading(true);
+      setIsVerifying(true);
       setTransactionStatus('Verifying transaction...');
+
+      // Check transaction status on the blockchain
+      let blockchainStatus = await checkTransactionOnBlockchain(hashToUse);
+      console.log('Blockchain transaction status:', blockchainStatus);
+
+      if (blockchainStatus.status === 'not_found') {
+        console.log('Transaction not found via TronWeb, trying explorer...');
+        blockchainStatus = await checkTransactionOnExplorer(hashToUse);
+        console.log('Explorer transaction status:', blockchainStatus);
+      }
+
+      if (blockchainStatus.status !== 'confirmed') {
+        setTransactionStatus(blockchainStatus.message || 'Transaction not confirmed');
+        toast({
+          title: 'Transaction Not Confirmed',
+          description: blockchainStatus.message || 'Transaction is not confirmed on the blockchain.',
+          variant: 'default',
+        });
+        return;
+      }
+
+      // If we get here, the transaction is confirmed
+      console.log('Transaction confirmed, sending to API');
       const response = await fetch('/api/add-funds', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           userId: user.uid,
-          amount,
-          transactionHash,
-          memo
+          amount: amountToUse,
+          transactionHash: hashToUse,
         }),
       });
 
       const data = await response.json();
+      console.log('API response:', data);
 
       if (!response.ok) {
-        console.error('Error response:', data);
-        throw new Error(data.error || `HTTP error! status: ${response.status}`);
+        const errorData = await response.json();
+        console.error('API error response:', errorData);
+        throw new Error(errorData.error || 'Failed to update balance');
       }
 
-      if (data.success) {
-        setTransactionStatus('Transaction confirmed and balance updated');
-        toast({
-          title: 'Success',
-          description: `Your balance has been updated with ${amount} ${selectedToken}`,
-          variant: 'default',
-        });
-      } else {
-        setTransactionStatus('Transaction verification failed');
-        toast({
-          title: 'Error',
-          description: data.error || 'Failed to verify transaction',
-          variant: 'destructive',
-        });
-      }
+      setTransactionStatus('Balance updated successfully');
+      toast({
+        title: 'Success',
+        description: 'Your balance has been updated.',
+        variant: 'default',
+      });
+
     } catch (error) {
       console.error('Error updating balance:', error);
       setTransactionStatus('Failed to update balance');
       toast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to update balance. Please try again later.',
+        description: error instanceof Error ? error.message : 'An unexpected error occurred',
         variant: 'destructive',
       });
     } finally {
-      setIsLoading(false);
+      setIsVerifying(false);
     }
   };
 
@@ -280,8 +323,8 @@ export default function AddFundsPage() {
                   placeholder="Enter the transaction hash"
                 />
               </div>
-              <Button onClick={checkAndUpdateBalance} disabled={isLoading}>
-                {isLoading ? 'Checking...' : 'Check and Update Balance'}
+              <Button onClick={() => checkAndUpdateBalance(amount, transactionHash)} disabled={isVerifying}>
+                {isVerifying ? 'Verifying...' : 'Check and Update Balance'}
               </Button>
             </div>
           </div>

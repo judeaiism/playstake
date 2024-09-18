@@ -2,8 +2,11 @@ import { NextResponse } from 'next/server';
 import { deriveUserAddress } from '@/lib/hdWallet';
 
 export async function POST(req: Request) {
+  console.log('API route hit: /api/generate-address');
   try {
-    const { userId } = await req.json();
+    const body = await req.json();
+    console.log('Request body:', body);
+    const { userId } = body;
 
     if (!userId) {
       console.error('userId is missing in the request');

@@ -1,11 +1,14 @@
 import TronWeb from 'tronweb';
 
 export interface ExtendedTronWeb extends TronWeb {
-  trx: {
-    getTransaction: (hash: string) => Promise<any>;
-    getTransactionInfo: (hash: string) => Promise<any>;
-  };
-  address: {
+  address: TronWeb['address'] & {
     fromPrivateKey: (privateKey: string) => string;
+    fromHex: (hexAddress: string) => string;
+  };
+  toSun: (amount: string | number) => number;
+  fromSun: (sunAmount: string | number) => number;
+  trx: {
+    getTransaction: (transactionHash: string) => Promise<any>;
+    getTransactionInfo: (transactionHash: string) => Promise<any>;
   };
 }
