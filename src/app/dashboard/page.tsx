@@ -870,10 +870,6 @@ export default function Dashboard() {
                                 <p className="text-white">Win Rate: {userData?.winRate || '0%'}</p>
                                 <p className="text-white">Rank: #{userData?.rank || 'N/A'}</p>
                               </div>
-                              <div className="mt-4">
-                                <h2 className="text-xl font-semibold">Your Wallet Address</h2>
-                                <p className="text-gray-700">{userData?.walletAddress}</p>
-                              </div>
                               <Button 
                                 variant="secondary"
                                 className="text-yellow-400 border border-yellow-400 hover:bg-yellow-400 hover:text-purple-900"
