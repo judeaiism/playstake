@@ -1,4 +1,4 @@
-import { db } from '@/lib/firebase-admin';
+import { db, admin } from '@/lib/firebase-admin';
 import crypto from 'crypto';
 import { deriveUserAddress } from '@/lib/hdWallet';
 import TronWeb from 'tronweb';
@@ -27,7 +27,7 @@ export async function getUserDepositAddress(userId: string): Promise<string> {
     return userDoc.data()?.depositAddress;
   }
 
-  const depositAddress = deriveUserAddress(userId);
+  const depositAddress = await deriveUserAddress(userId);
 
   await db.collection('users').doc(userId).set({
     depositAddress: depositAddress
@@ -43,12 +43,15 @@ export async function generateDepositIdentifier(userId: string): Promise<{ addre
     // Generate a unique memo for this deposit
     const memo = crypto.randomBytes(4).toString('hex');
 
-    await db.collection('users').doc(userId).set({
+    // Create a valid Firestore document
+    const depositData = {
       [`deposits.${memo}`]: {
         status: 'pending',
-        createdAt: new Date()
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
       }
-    }, { merge: true });
+    };
+
+    await db.collection('users').doc(userId).set(depositData, { merge: true });
 
     return {
       address: depositAddress,

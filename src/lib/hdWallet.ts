@@ -1,89 +1,51 @@
-import { BIP32Factory } from 'bip32';
-import * as bip39 from 'bip39';
 import TronWeb from 'tronweb';
 
-let ecc: any;
+const MASTER_SEED = process.env.MASTER_SEED;
+const TRON_FULL_HOST = process.env.TRON_FULL_HOST;
+const TRON_API_KEY = process.env.TRON_API_KEY;
 
-async function loadEcc() {
-  if (!ecc) {
-    ecc = await import('tiny-secp256k1');
+if (!MASTER_SEED) {
+  throw new Error('MASTER_SEED is not defined in environment variables');
+}
+if (!TRON_FULL_HOST) {
+  throw new Error('TRON_FULL_HOST is not defined in environment variables');
+}
+if (!TRON_API_KEY) {
+  throw new Error('TRON_API_KEY is not defined in environment variables');
+}
+
+const tronWeb = new TronWeb({
+  fullHost: TRON_FULL_HOST,
+  headers: { "TRON-PRO-API-KEY": TRON_API_KEY },
+});
+
+export async function deriveUserAddress(userId: string): Promise<string | null> {
+  try {
+    console.log('Deriving user address for userId:', userId);
+    
+    // Generate a unique seed for this user
+    const userSeed = `${MASTER_SEED}-${userId}`;
+    
+    // Generate a private key from the user seed
+    const privateKey = tronWeb.sha3(userSeed).substring(2, 66);
+    
+    // Generate Tron address from private key
+    const address = tronWeb.address.fromPrivateKey(privateKey);
+    
+    console.log('Tron address generated successfully:', address);
+
+    return address;
+  } catch (error) {
+    console.error('Error deriving user address:', error);
+    return null;
   }
-  return ecc;
 }
 
-const HOT_WALLET_PRIVATE_KEY = process.env.HOT_WALLET_PRIVATE_KEY;
-
-if (!HOT_WALLET_PRIVATE_KEY) {
-  throw new Error('HOT_WALLET_PRIVATE_KEY is not set in environment variables. Please check your .env.local file and ensure it is set correctly.');
-}
-
-async function initializeBip32() {
-  const eccModule = await loadEcc();
-  return BIP32Factory(eccModule);
-}
-
-export async function deriveUserAddress(userId: string): Promise<string> {
-  const bip32 = await initializeBip32();
-  
-  if (typeof HOT_WALLET_PRIVATE_KEY !== 'string') {
-    throw new Error('HOT_WALLET_PRIVATE_KEY is not a valid string');
-  }
-  
-  const seed = bip39.mnemonicToSeedSync(HOT_WALLET_PRIVATE_KEY);
-  
-  const master = bip32.fromSeed(seed);
-
-  // Use a hash function to convert userId to a number
-  const index = hashToNumber(userId);
-  const child = master.derivePath(`m/44'/195'/${index}'/0/0`);
-  const privateKey = child.privateKey;
-  
+export function getHotWalletPrivateKey(): string {
+  const privateKey = process.env.HOT_WALLET_PRIVATE_KEY;
   if (!privateKey) {
-    throw new Error('Failed to derive private key');
+    throw new Error('HOT_WALLET_PRIVATE_KEY is not set in environment variables');
   }
-
-  const privateKeyHex = Buffer.from(privateKey).toString('hex');
-
-  const tronWeb = new TronWeb({
-    fullHost: 'https://api.trongrid.io',
-    privateKey: privateKeyHex
-  });
-
-  return tronWeb.address.fromPrivateKey(privateKeyHex);
+  return privateKey;
 }
 
-export async function deriveChildAddress(index: number): Promise<string> {
-  const bip32 = await initializeBip32();
-  
-  if (typeof HOT_WALLET_PRIVATE_KEY !== 'string') {
-    throw new Error('HOT_WALLET_PRIVATE_KEY is not a valid string');
-  }
-  
-  const seed = bip39.mnemonicToSeedSync(HOT_WALLET_PRIVATE_KEY);
-  const master = bip32.fromSeed(seed);
-  const child = master.derivePath(`m/44'/195'/${index}'/0/0`);
-  const privateKey = child.privateKey;
-  
-  if (!privateKey) {
-    throw new Error('Failed to derive private key');
-  }
-
-  const privateKeyHex = Buffer.from(privateKey).toString('hex');
-
-  const tronWeb = new TronWeb({
-    fullHost: 'https://api.trongrid.io',
-    privateKey: privateKeyHex
-  });
-
-  return tronWeb.address.fromPrivateKey(privateKeyHex);
-}
-
-function hashToNumber(userId: string): number {
-  let hash = 0;
-  for (let i = 0; i < userId.length; i++) {
-    const char = userId.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32bit integer
-  }
-  return Math.abs(hash);
-}

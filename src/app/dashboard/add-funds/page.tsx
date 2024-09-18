@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,8 @@ export default function AddFundsPage() {
   const [amount, setAmount] = useState('');
   const [transactionHash, setTransactionHash] = useState('');
 
+  const transactionListenerRef = useRef<NodeJS.Timeout | null>(null);
+
   const fetchUniqueAddress = async () => {
     try {
       setIsLoading(true);
@@ -42,14 +44,17 @@ export default function AddFundsPage() {
       });
       
       if (!response.ok) {
-        const text = await response.text(); // Get the response as text
-        console.error('Error response:', text); // Log the full response
-        throw new Error(`HTTP error! status: ${response.status}, body: ${text}`);
+        const errorData = await response.json();
+        console.error('Error response:', errorData);
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.error}, details: ${errorData.details || 'No details provided'}`);
       }
 
       const data = await response.json();
+      if (data.error) {
+        throw new Error(data.error);
+      }
       setWalletAddress(data.address);
-      setMemo(data.memo || ''); // Add fallback to empty string if memo is not provided
+      setMemo(data.memo || '');
     } catch (error) {
       console.error('Error generating unique address:', error);
       setError(error instanceof Error ? error.message : 'Failed to generate unique address. Please try again later.');
@@ -69,19 +74,17 @@ export default function AddFundsPage() {
     }
 
     return () => {
-      // Clean up the transaction listener when the component unmounts
-      if (transactionListener) {
-        clearInterval(transactionListener);
+      // Clean up the transaction listener using the ref
+      if (transactionListenerRef.current) {
+        clearInterval(transactionListenerRef.current);
       }
     };
   }, [user]);
 
-  let transactionListener: NodeJS.Timeout | null = null;
-
   const setupTransactionListener = () => {
     if (!user || !walletAddress) return;
 
-    transactionListener = setInterval(async () => {
+    transactionListenerRef.current = setInterval(async () => {
       try {
         const response = await fetch('/api/check-transactions', {
           method: 'POST',
