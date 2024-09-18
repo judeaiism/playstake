@@ -28,6 +28,26 @@ const nextConfig = {
       };
     }
 
+    // Add polyfills for async/await
+    if (!isServer) {
+      const originalEntry = config.entry;
+      config.entry = async () => {
+        let entries;
+        if (typeof originalEntry === 'function') {
+          entries = await originalEntry();
+        } else if (typeof originalEntry === 'object' || typeof originalEntry === 'string') {
+          entries = originalEntry;
+        } else {
+          throw new Error('Unsupported entry type');
+        }
+
+        if (typeof entries === 'object' && entries['main.js'] && !entries['main.js'].includes('./src/polyfills.js')) {
+          entries['main.js'].unshift('./src/polyfills.js');
+        }
+        return entries;
+      };
+    }
+
     if (dev) {
       config.devtool = 'source-map';
     }

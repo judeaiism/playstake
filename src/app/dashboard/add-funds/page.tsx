@@ -21,6 +21,8 @@ export default function AddFundsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [transactionStatus, setTransactionStatus] = useState<string | null>(null);
+  const [amount, setAmount] = useState('');
+  const [transactionHash, setTransactionHash] = useState('');
 
   const fetchUniqueAddress = async () => {
     try {
@@ -47,7 +49,7 @@ export default function AddFundsPage() {
 
       const data = await response.json();
       setWalletAddress(data.address);
-      setMemo(data.memo);
+      setMemo(data.memo || ''); // Add fallback to empty string if memo is not provided
     } catch (error) {
       console.error('Error generating unique address:', error);
       setError(error instanceof Error ? error.message : 'Failed to generate unique address. Please try again later.');
@@ -128,6 +130,60 @@ export default function AddFundsPage() {
     }
   };
 
+  const checkAndUpdateBalance = async () => {
+    if (!user || !transactionHash || !amount) return;
+
+    console.log('Memo value:', memo);
+
+    try {
+      setIsLoading(true);
+      setTransactionStatus('Verifying transaction...');
+      const response = await fetch('/api/add-funds', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.uid,
+          amount,
+          transactionHash,
+          memo
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error('Error response:', data);
+        throw new Error(data.error || `HTTP error! status: ${response.status}`);
+      }
+
+      if (data.success) {
+        setTransactionStatus('Transaction confirmed and balance updated');
+        toast({
+          title: 'Success',
+          description: `Your balance has been updated with ${amount} ${selectedToken}`,
+          variant: 'default',
+        });
+      } else {
+        setTransactionStatus('Transaction verification failed');
+        toast({
+          title: 'Error',
+          description: data.error || 'Failed to verify transaction',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Error updating balance:', error);
+      setTransactionStatus('Failed to update balance');
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to update balance. Please try again later.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-8">Add Funds</h1>
@@ -197,6 +253,33 @@ export default function AddFundsPage() {
                   className="font-mono"
                 />
               )}
+            </div>
+          </div>
+          <div className="mt-8">
+            <h2 className="text-xl font-semibold mb-4">Confirm Transaction</h2>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="amount">Amount</Label>
+                <Input
+                  id="amount"
+                  type="number"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="Enter the amount you sent"
+                />
+              </div>
+              <div>
+                <Label htmlFor="transaction-hash">Transaction Hash</Label>
+                <Input
+                  id="transaction-hash"
+                  value={transactionHash}
+                  onChange={(e) => setTransactionHash(e.target.value)}
+                  placeholder="Enter the transaction hash"
+                />
+              </div>
+              <Button onClick={checkAndUpdateBalance} disabled={isLoading}>
+                {isLoading ? 'Checking...' : 'Check and Update Balance'}
+              </Button>
             </div>
           </div>
           {transactionStatus && (
