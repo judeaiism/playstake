@@ -1,17 +1,22 @@
-import React from 'react'
+import React, { forwardRef } from 'react'
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'default' | 'primary' | 'secondary'
   size?: 'small' | 'medium' | 'large'
 }
 
-export function Button({ children, variant = 'default', size = 'medium', className, ...props }: ButtonProps) {
-  return (
-    <button
-      className={`button ${variant} ${size} ${className}`}
-      {...props}
-    >
-      {children}
-    </button>
-  )
-}
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ children, variant = 'default', size = 'medium', className, ...props }, ref) => {
+    return (
+      <button
+        ref={ref}
+        className={`button ${variant} ${size} ${className || ''}`}
+        {...props}
+      >
+        {children}
+      </button>
+    )
+  }
+)
+
+Button.displayName = 'Button'
