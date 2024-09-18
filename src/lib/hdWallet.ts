@@ -1,25 +1,38 @@
 import { BIP32Factory } from 'bip32';
 import * as bip39 from 'bip39';
 import TronWeb from 'tronweb';
-import * as ecc from 'tiny-secp256k1';
 
-// Create a bip32 instance using the BIP32Factory
-const bip32 = BIP32Factory(ecc);
+let ecc: any;
 
-// We'll use a type assertion for ecc since tiny-secp256k1 doesn't have type declarations
+async function loadEcc() {
+  if (!ecc) {
+    ecc = await import('tiny-secp256k1');
+  }
+  return ecc;
+}
+
 const HOT_WALLET_PRIVATE_KEY = process.env.HOT_WALLET_PRIVATE_KEY;
 
 if (!HOT_WALLET_PRIVATE_KEY) {
-  throw new Error('HOT_WALLET_PRIVATE_KEY is not set in environment variables');
+  throw new Error('HOT_WALLET_PRIVATE_KEY is not set in environment variables. Please check your .env.local file and ensure it is set correctly.');
 }
 
-// Convert private key to seed
-const seed = bip39.mnemonicToSeedSync(HOT_WALLET_PRIVATE_KEY);
+async function initializeBip32() {
+  const eccModule = await loadEcc();
+  return BIP32Factory(eccModule);
+}
 
-// Create master node
-const master = bip32.fromSeed(seed);
+export async function deriveUserAddress(userId: string): Promise<string> {
+  const bip32 = await initializeBip32();
+  
+  if (typeof HOT_WALLET_PRIVATE_KEY !== 'string') {
+    throw new Error('HOT_WALLET_PRIVATE_KEY is not a valid string');
+  }
+  
+  const seed = bip39.mnemonicToSeedSync(HOT_WALLET_PRIVATE_KEY);
+  
+  const master = bip32.fromSeed(seed);
 
-export function deriveUserAddress(userId: string): string {
   // Use a hash function to convert userId to a number
   const index = hashToNumber(userId);
   const child = master.derivePath(`m/44'/195'/${index}'/0/0`);
@@ -39,10 +52,30 @@ export function deriveUserAddress(userId: string): string {
   return tronWeb.address.fromPrivateKey(privateKeyHex);
 }
 
-export function deriveChildAddress(index: number): string {
-  // Implementation of deriving child address
-  // This is a placeholder implementation. Replace with actual logic.
-  return `0x${Array(40).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join('')}`;
+export async function deriveChildAddress(index: number): Promise<string> {
+  const bip32 = await initializeBip32();
+  
+  if (typeof HOT_WALLET_PRIVATE_KEY !== 'string') {
+    throw new Error('HOT_WALLET_PRIVATE_KEY is not a valid string');
+  }
+  
+  const seed = bip39.mnemonicToSeedSync(HOT_WALLET_PRIVATE_KEY);
+  const master = bip32.fromSeed(seed);
+  const child = master.derivePath(`m/44'/195'/${index}'/0/0`);
+  const privateKey = child.privateKey;
+  
+  if (!privateKey) {
+    throw new Error('Failed to derive private key');
+  }
+
+  const privateKeyHex = Buffer.from(privateKey).toString('hex');
+
+  const tronWeb = new TronWeb({
+    fullHost: 'https://api.trongrid.io',
+    privateKey: privateKeyHex
+  });
+
+  return tronWeb.address.fromPrivateKey(privateKeyHex);
 }
 
 function hashToNumber(userId: string): number {

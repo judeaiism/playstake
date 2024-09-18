@@ -103,18 +103,17 @@ export default function SignUpPage() {
 
       // Save user data to Firestore with wallet address and initial balance
       const userCount = await getDocs(collection(db, 'users')).then(snap => snap.size);
-      const derivedAddress = deriveChildAddress(userCount);
+      const derivedAddress = await deriveChildAddress(userCount);
 
       await setDoc(doc(db, 'users', user.uid), {
         username,
         email,
         psnName,
         avatarUrl,
-        walletAddress,
+        walletAddress: derivedAddress,
         balance: 0, // Initial balance is always 0
         age,
         createdAt: new Date().toISOString(),
-        derivedAddress: derivedAddress,
       })
 
       router.push('/dashboard')
