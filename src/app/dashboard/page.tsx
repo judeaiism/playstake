@@ -366,24 +366,39 @@ export default function Dashboard() {
       return;
     }
 
-    setIsAccepting(true)
-    setAcceptProgress(0)
-    setChallengeModalOpen(true)
-    setActiveChallenge(challengeId)
+    // Fetch the challenge details first
+    const challengeRef = doc(db, 'challenges', challengeId);
+    const challengeSnap = await getDoc(challengeRef);
+
+    if (!challengeSnap.exists()) {
+      toast.error("Challenge not found.");
+      return;
+    }
+
+    const challengeData = challengeSnap.data();
+    const betAmount = challengeData.betAmount;
+
+    if (betAmount > balance) {
+      toast.error("You don't have sufficient funds to accept this challenge.");
+      return;
+    }
+
+    setIsAccepting(true);
+    setAcceptProgress(0);
+    setChallengeModalOpen(true);
+    setActiveChallenge(challengeId);
 
     try {
-      const challengeRef = doc(db, 'challenges', challengeId);
-
       // Simulate progress
       const interval = setInterval(() => {
         setAcceptProgress((prev) => {
           if (prev >= 100) {
-            clearInterval(interval)
-            return 100
+            clearInterval(interval);
+            return 100;
           }
-          return prev + 10
-        })
-      }, 200)
+          return prev + 10;
+        });
+      }, 200);
 
       await updateDoc(challengeRef, {
         status: 'accepted',
@@ -401,20 +416,20 @@ export default function Dashboard() {
         await updateDoc(doc.ref, { read: true });
       });
 
-      clearInterval(interval)
-      setAcceptProgress(100)
+      clearInterval(interval);
+      setAcceptProgress(100);
 
       // Navigate to the game page
       router.push(`/game/${challengeId}`);
     } catch (error) {
       console.error('Error accepting challenge:', error);
-      alert('Failed to accept challenge. Please try again.');
+      toast.error('Failed to accept challenge. Please try again.');
     } finally {
-      setIsAccepting(false)
-      setChallengeModalOpen(false)
-      setActiveChallenge(null)
+      setIsAccepting(false);
+      setChallengeModalOpen(false);
+      setActiveChallenge(null);
     }
-  }
+  };
 
   const handleDeclineChallenge = async (challengeId: string) => {
     try {
@@ -606,6 +621,11 @@ export default function Dashboard() {
       return;
     }
 
+    if (betAmount > balance) {
+      toast.error("The bet amount cannot exceed your current balance.");
+      return;
+    }
+
     try {
       console.log('Creating challenge...');
       const challengeRef = await addDoc(collection(db, 'challenges'), {
@@ -625,7 +645,7 @@ export default function Dashboard() {
         type: 'challenge',
         challengeId: challengeRef.id,
         message: `New challenge from ${userData?.username}`,
-        betAmount: betAmount, // Include the bet amount in the notification
+        betAmount: betAmount,
         createdAt: new Date().toISOString(),
         read: false
       });
@@ -634,11 +654,9 @@ export default function Dashboard() {
       setChallengeModalOpen(false);
       console.log('Challenge created successfully');
       
-      // Optionally, you can show a success message to the user
       toast.success('Challenge sent successfully!');
     } catch (error) {
       console.error('Error creating challenge:', error);
-      // Show an error message to the user
       toast.error('Failed to create challenge. Please try again.');
     }
   }
@@ -830,7 +848,7 @@ export default function Dashboard() {
                 <DropdownMenu>
                   <DropdownMenuTrigger>
                     <Avatar>
-                      <AvatarImage src={userData?.avatarUrl || "https://github.com/shadcn.png"} alt="@shadcn" />
+                      <AvatarImage src={userData?.avatarUrl ?? "https://github.com/shadcn.png"} alt="@shadcn" />
                       <AvatarFallback>{userData?.username?.[0] || 'U'}</AvatarFallback>
                     </Avatar>
                   </DropdownMenuTrigger>
@@ -926,10 +944,10 @@ export default function Dashboard() {
           <BoxReveal width="100%" boxColor="#4B0082">
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
               {[
-                { title: "Total Matches", value: "89", icon: Gamepad },
-                { title: "Win Rate", value: "64%", icon: Award },
-                { title: "Rank", value: "#42", icon: Award },
-                { title: "Favorite Game", value: "FIFA 23", icon: Gamepad },
+                { title: "Total Matches", value: "0", icon: Gamepad },
+                { title: "Win Rate", value: "0%", icon: Award },
+                { title: "Rank", value: "#0", icon: Award },
+                { title: "Game", value: "FIFA 1v1", icon: Gamepad },
               ].map((item, index) => (
                 <Card key={index} className="bg-gradient-to-br from-yellow-600 to-yellow-800 border-4 border-yellow-400 shadow-lg overflow-hidden group">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -1181,7 +1199,7 @@ export default function Dashboard() {
                                   <div className="flex items-center justify-between bg-indigo-700 p-2 rounded-lg">
                                     <div className="flex items-center space-x-2">
                                       <Avatar>
-                                        <AvatarImage src={opponent.avatarUrl || undefined} alt={opponent.username} />
+                                        <AvatarImage src={opponent.avatarUrl ?? undefined} alt={opponent.username} />
                                         <AvatarFallback>{opponent.username[0]}</AvatarFallback>
                                       </Avatar>
                                       <span className="text-white">{opponent.username}</span>
@@ -1323,8 +1341,8 @@ export default function Dashboard() {
                                   <Button 
                                     size="small" 
                                     onClick={() => handleAcceptChallenge(notification.challengeId)}
-                                    className={`bg-green-500 hover:bg-green-600 text-white ${balance <= 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                    disabled={balance <= 0}
+                                    className={`bg-green-500 hover:bg-green-600 text-white ${balance < notification.betAmount ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    disabled={balance < notification.betAmount}
                                   >
                                     Accept
                                   </Button>
