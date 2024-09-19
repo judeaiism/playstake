@@ -1,378 +1,319 @@
     - Always give file names and file location 100% of the time.
 
-TypeScript.
+## General Rules
+- Always provide file names, folders, and file locations 100% of the time.
+- Follow the user's requirements carefully and to the letter.
+- Write correct, up-to-date, bug-free, fully functional, secure, performant, and efficient code.
+- Focus on readability over raw performance.
+- Fully implement all requested functionality.
+- Leave NO todos, placeholders, or missing pieces in the code.
+- Be concise and minimize additional prose.
+- If unsure of the correct answer, state uncertainty instead of guessing.
+- Founder Mode.
+- Provide 100% fix solutions following user instructions.
+- Avoid confusing the user.
+- Do not apologize when confused; just provide a fix.
 
-You are an expert full-stack web developer focused on producing clear, readable Next.js code.
+## TypeScript
+- Use the latest stable versions of Next.js 14, firebase, TailwindCSS, and TypeScript.
+- Use kebab-case for component names (e.g., `my-component.tsx`).
+- Favor using React Server Components and Next.js SSR features where possible.
+- Minimize the usage of client components (`'use client'`) to small, isolated components.
+- Always add loading and error states to data fetching components.
+- Implement error handling and error logging.
+- Use semantic HTML elements where possible.
 
-Always specify the file you you're referencing.
+## React
+### Code Style and Structure
+- Write concise, technical JavaScript code following Standard.js rules.
+- Use functional and declarative programming patterns; avoid classes.
+- Prefer iteration and modularization over code duplication.
+- Use descriptive variable names with auxiliary verbs (e.g., `isLoading`, `hasError`).
+- Structure files: exported component, subcomponents, helpers, static content.
 
-    You always use the latest stable versions of Next.js 14, Supabase, TailwindCSS, and TypeScript, and you are familiar with the latest features and best practices.
-    
-    You carefully provide accurate, factual, thoughtful answers, and are a genius at reasoning.
-    
-    Technical preferences:
-    
-    - Prompt yourself with COT (CHAIN OF THOUGHT)
-    - Always give file names and file location 100% of the time.
-    - Always use kebab-case for component names (e.g. my-component.tsx)
-    - Favour using React Server Components and Next.js SSR features where possible
-    - Minimize the usage of client components ('use client') to small, isolated components
-    - Always add loading and error states to data fetching components
-    - Implement error handling and error logging
-    - Use semantic HTML elements where possible
-    
-    General preferences:
+### Standard.js Rules
+- Use 2 space indentation.
+- Use single quotes for strings except to avoid escaping.
+- No semicolons unless required to disambiguate statements.
+- No unused variables.
+- Add a space after keywords.
+- Add a space before a function declaration's parentheses.
+- Always use `===` instead of `==`.
+- Infix operators must be spaced.
+- Commas should have a space after them.
+- Keep `else` statements on the same line as their curly braces.
+- For multi-line `if` statements, use curly braces.
+- Always handle the `err` function parameter.
+- Use camelCase for variables and functions.
+- Use PascalCase for constructors and React components.
 
-    - Reflect (Devise the excution plan - which code to run ad which tools to use.)
-    - Evaluate (Evaluate the execution plan until completion or failure.)
-    - Percolate (Collect and distill runtime information, debugging traces, user actions, etc.)
-    - Learn (Cursor self-improves, learning from all the data you can and have access to and human feedback.)
-    - Follow the user's requirements carefully & to the letter.
-    - Always write correct, up-to-date, bug-free, fully functional and working, secure, performant and efficient code.
-    - Focus on readability over being performant.
-    - Fully implement all requested functionality.
-    - Leave NO todo's, placeholders or missing pieces in the code.
-    - Be sure to reference file names.
-    - Be concise. Minimize any other prose.
-    - If you think there might not be a correct answer, you say so. If you do not know the answer, say so instead of guessing.    
-    - Founder Mode.
-    - Always give file names and file location 100% of the time.
-    - Follow My Instrcutions & Give 100% Fix To Solutions.
-    - Try not to confuse me.
-    - Do not apologize when you confuse me, just fix it.
+### Naming Conventions
+- Use lowercase with dashes for directories (e.g., `components/auth-wizard`).
+- Favor named exports for components.
 
-    
+### React Best Practices
+- Use functional components with prop-types for type checking.
+- Use the `function` keyword for component definitions.
+- Implement hooks correctly (`useState`, `useEffect`, `useContext`, `useReducer`, `useMemo`, `useCallback`).
+- Follow the Rules of Hooks (only call hooks at the top level, only call hooks from React functions).
+- Create custom hooks to extract reusable component logic.
+- Use `React.memo()` for component memoization when appropriate.
+- Implement `useCallback` for memoizing functions passed as props.
+- Use `useMemo` for expensive computations.
+- Avoid inline function definitions in render to prevent unnecessary re-renders.
+- Prefer composition over inheritance.
+- Use `children` prop and render props pattern for flexible, reusable components.
+- Implement `React.lazy()` and `Suspense` for code splitting.
+- Use refs sparingly and mainly for DOM access.
+- Prefer controlled components over uncontrolled components.
+- Implement error boundaries to catch and handle errors gracefully.
+- Use cleanup functions in `useEffect` to prevent memory leaks.
+- Use short-circuit evaluation and ternary operators for conditional rendering.
 
-React.
+### State Management
+- Use Zustand for global state management.
+- Lift state up when needed to share state between components.
+- Use context for intermediate state sharing when prop drilling becomes cumbersome.
 
-  You are an expert in JavaScript, React, Node.js, Next.js App Router, Zustand, Shadcn UI, Radix UI, Tailwind, and Stylus.
+### UI and Styling
+- Use Shadcn UI and Radix UI for component foundations.
+- Implement responsive design with Tailwind CSS; use a mobile-first approach.
+- Use Stylus as CSS Modules for component-specific styles:
+  - Create a `.module.styl` file for each component that needs custom styling.
+  - Use camelCase for class names in Stylus files.
+  - Leverage Stylus features like nesting, variables, and mixins for efficient styling.
+- Implement a consistent naming convention for CSS classes (e.g., BEM) within Stylus modules.
+- Use Tailwind for utility classes and rapid prototyping.
+- Combine Tailwind utility classes with Stylus modules for a hybrid approach:
+  - Use Tailwind for common utilities and layout.
+  - Use Stylus modules for complex, component-specific styles.
+  - **Never use the `@apply` directive.**
 
-  Code Style and Structure
-  - Write concise, technical JavaScript code following Standard.js rules.
-  - Use functional and declarative programming patterns; avoid classes.
-  - Prefer iteration and modularization over code duplication.
-  - Use descriptive variable names with auxiliary verbs (e.g., isLoading, hasError).
-  - Structure files: exported component, subcomponents, helpers, static content.
+### File Structure for Styling
+- Place Stylus module files next to their corresponding component files.
+- **Example structure:**
+  ```
+  components/
+    button/
+      button.tsx
+      button.module.styl
+    card/
+      card.tsx
+      card.module.styl
+  ```
 
-  Standard.js Rules
-  - Use 2 space indentation.
-  - Use single quotes for strings except to avoid escaping.
-  - No semicolons (unless required to disambiguate statements).
-  - No unused variables.
-  - Add a space after keywords.
-  - Add a space before a function declaration's parentheses.
-  - Always use === instead of ==.
-  - Infix operators must be spaced.
-  - Commas should have a space after them.
-  - Keep else statements on the same line as their curly braces.
-  - For multi-line if statements, use curly braces.
-  - Always handle the err function parameter.
-  - Use camelcase for variables and functions.
-  - Use PascalCase for constructors and React components.
+### Stylus Best Practices
+- Use variables for colors, fonts, and other repeated values.
+- Create mixins for commonly used style patterns.
+- Utilize Stylus' parent selector (`&`) for nesting and pseudo-classes.
+- Keep specificity low by avoiding deep nesting.
 
-  Naming Conventions
-  - Use lowercase with dashes for directories (e.g., components/auth-wizard).
-  - Favor named exports for components.
+### Integration with React
+- Import Stylus modules in React components:
+  ```javascript:src/components/Button/button.tsx
+  import styles from './button.module.styl';
+  ```
+- Apply classes using the styles object:
+  ```jsx:src/components/Button/button.tsx
+  <div className={styles.containerClass}>
+  ```
 
-  React Best Practices
-  - Use functional components with prop-types for type checking.
-  - Use the "function" keyword for component definitions.
-  - Implement hooks correctly (useState, useEffect, useContext, useReducer, useMemo, useCallback).
-  - Follow the Rules of Hooks (only call hooks at the top level, only call hooks from React functions).
-  - Create custom hooks to extract reusable component logic.
-  - Use React.memo() for component memoization when appropriate.
-  - Implement useCallback for memoizing functions passed as props.
-  - Use useMemo for expensive computations.
-  - Avoid inline function definitions in render to prevent unnecessary re-renders.
-  - Prefer composition over inheritance.
-  - Use children prop and render props pattern for flexible, reusable components.
-  - Implement React.lazy() and Suspense for code splitting.
-  - Use refs sparingly and mainly for DOM access.
-  - Prefer controlled components over uncontrolled components.
-  - Implement error boundaries to catch and handle errors gracefully.
-  - Use cleanup functions in useEffect to prevent memory leaks.
-  - Use short-circuit evaluation and ternary operators for conditional rendering.
+### Performance Optimization
+- Minimize `'use client'`, `useEffect`, and `useState`; favor React Server Components (RSC).
+- Wrap client components in `Suspense` with fallback.
+- Use dynamic loading for non-critical components.
+- Optimize images: use WebP format, include size data, implement lazy loading.
+- Implement route-based code splitting in Next.js.
+- Minimize the use of global styles; prefer modular, scoped styles.
+- Use PurgeCSS with Tailwind to remove unused styles in production.
 
-  State Management
-  - Use Zustand for global state management.
-  - Lift state up when needed to share state between components.
-  - Use context for intermediate state sharing when prop drilling becomes cumbersome.
+### Forms and Validation
+- Use controlled components for form inputs.
+- Implement form validation (client-side and server-side).
+- Consider using libraries like `react-hook-form` for complex forms.
+- Use `Zod` or `Joi` for schema validation.
 
-  UI and Styling
-  - Use Shadcn UI and Radix UI for component foundations.
-  - Implement responsive design with Tailwind CSS; use a mobile-first approach.
-  - Use Stylus as CSS Modules for component-specific styles:
-    - Create a .module.styl file for each component that needs custom styling.
-    - Use camelCase for class names in Stylus files.
-    - Leverage Stylus features like nesting, variables, and mixins for efficient styling.
-  - Implement a consistent naming convention for CSS classes (e.g., BEM) within Stylus modules.
-  - Use Tailwind for utility classes and rapid prototyping.
-  - Combine Tailwind utility classes with Stylus modules for a hybrid approach:
-    - Use Tailwind for common utilities and layout.
-    - Use Stylus modules for complex, component-specific styles.
-    - Never use the @apply directive
+### Error Handling and Validation
+- Prioritize error handling and edge cases.
+- Handle errors and edge cases at the beginning of functions.
+- Use early returns for error conditions to avoid deeply nested `if` statements.
+- Place the happy path last in the function for improved readability.
+- Avoid unnecessary `else` statements; use `if-return` pattern instead.
+- Use guard clauses to handle preconditions and invalid states early.
+- Implement proper error logging and user-friendly error messages.
+- Model expected errors as return values in Server Actions.
 
-  File Structure for Styling
-  - Place Stylus module files next to their corresponding component files.
-  - Example structure:
-    components/
-      Button/
-        Button.js
-        Button.module.styl
-      Card/
-        Card.js
-        Card.module.styl
+### Accessibility (a11y)
+- Use semantic HTML elements.
+- Implement proper ARIA attributes.
+- Ensure keyboard navigation support.
 
-  Stylus Best Practices
-  - Use variables for colors, fonts, and other repeated values.
-  - Create mixins for commonly used style patterns.
-  - Utilize Stylus' parent selector (&) for nesting and pseudo-classes.
-  - Keep specificity low by avoiding deep nesting.
+### Testing
+- Write unit tests for components using Jest and React Testing Library.
+- Implement integration tests for critical user flows.
+- Use snapshot testing judiciously.
 
-  Integration with React
-  - Import Stylus modules in React components:
-    import styles from './ComponentName.module.styl'
-  - Apply classes using the styles object:
-    <div className={styles.containerClass}>
+### Security
+- Sanitize user inputs to prevent XSS attacks.
+- Use `dangerouslySetInnerHTML` sparingly and only with sanitized content.
 
-  Performance Optimization
-  - Minimize 'use client', 'useEffect', and 'useState'; favor React Server Components (RSC).
-  - Wrap client components in Suspense with fallback.
-  - Use dynamic loading for non-critical components.
-  - Optimize images: use WebP format, include size data, implement lazy loading.
-  - Implement route-based code splitting in Next.js.
-  - Minimize the use of global styles; prefer modular, scoped styles.
-  - Use PurgeCSS with Tailwind to remove unused styles in production.
+### Internationalization (i18n)
+- Use libraries like `react-intl` or `next-i18next` for internationalization.
 
-  Forms and Validation
-  - Use controlled components for form inputs.
-  - Implement form validation (client-side and server-side).
-  - Consider using libraries like react-hook-form for complex forms.
-  - Use Zod or Joi for schema validation.
+### Key Conventions
+- Use `'nuqs'` for URL search parameter state management.
+- Optimize Web Vitals (LCP, CLS, FID).
+- **Limit `'use client'`:**
+  - Favor server components and Next.js SSR.
+  - Use only for Web API access in small components.
+  - Avoid for data fetching or state management.
+- **Balance the use of Tailwind utility classes with Stylus modules:**
+  - Use Tailwind for rapid development and consistent spacing/sizing.
+  - Use Stylus modules for complex, unique component styles.
 
-  Error Handling and Validation
-  - Prioritize error handling and edge cases.
+## HTML
+### Key Principles
+- Write semantic HTML to improve accessibility and SEO.
+- Use CSS for styling, avoiding inline styles.
+- Ensure responsive design using media queries and flexible layouts.
+- Prioritize accessibility by using ARIA roles and attributes.
+
+### HTML Best Practices
+- Use semantic elements (e.g., `<header>`, `<main>`, `<footer>`, `<article>`, `<section>`).
+- Use `<button>` for clickable elements, not `<div>` or `<span>`.
+- Use `<a>` for links, ensuring `href` attribute is present.
+- Use `<img>` with `alt` attribute for images.
+- Use `<form>` for forms, with appropriate input types and labels.
+- Avoid using deprecated elements (e.g., `<font>`, `<center>`).
+
+### CSS Best Practices
+- Use external stylesheets for CSS.
+- Use class selectors over ID selectors for styling.
+- Use Flexbox and Grid for layout.
+- Use `rem` and `em` units for scalable and accessible typography.
+- Use CSS variables for consistent theming.
+- Use BEM (Block Element Modifier) methodology for naming classes.
+- Avoid `!important`; use specificity to manage styles.
+
+### Responsive Design
+- Use media queries to create responsive layouts.
+- Use mobile-first approach for media queries.
+- Ensure touch targets are large enough for touch devices.
+- Use responsive images with `srcset` and `sizes` attributes.
+- Use viewport meta tag for responsive scaling.
+
+### Accessibility
+- Use ARIA roles and attributes to enhance accessibility.
+- Ensure sufficient color contrast for text.
+- Provide keyboard navigation for interactive elements.
+- Use focus styles to indicate focus state.
+- Use landmarks (e.g., `<nav>`, `<main>`, `<aside>`) for screen readers.
+
+### Performance
+- Minimize CSS and HTML file sizes.
+- Use CSS minification and compression.
+- Avoid excessive use of animations and transitions.
+- Use lazy loading for images and other media.
+
+### Testing
+- Test HTML and CSS in multiple browsers and devices.
+- Use tools like Lighthouse for performance and accessibility audits.
+- Validate HTML and CSS using W3C validators.
+
+### Documentation
+- Comment complex CSS rules and HTML structures.
+- Use consistent naming conventions for classes and IDs.
+- Document responsive breakpoints and design decisions.
+- Refer to MDN Web Docs for HTML and CSS best practices and to the W3C guidelines for accessibility standards.
+
+## Python
+### Key Principles
+- Write concise, technical responses with accurate Python examples.
+- Use functional, declarative programming; avoid classes where possible except for Flask views.
+- Prefer iteration and modularization over code duplication.
+- Use descriptive variable names with auxiliary verbs (e.g., `is_active`, `has_permission`).
+- Use lowercase with underscores for directories and files (e.g., `blueprints/user_routes.py`).
+- Favor named exports for routes and utility functions.
+- Use the Receive an Object, Return an Object (RORO) pattern where applicable.
+
+### Python/Flask Best Practices
+- Use `def` for function definitions.
+- Use type hints for all function signatures where possible.
+- **File structure:** Flask app initialization, blueprints, models, utilities, config.
+- Avoid unnecessary curly braces in conditional statements.
+- For single-line statements in conditionals, omit curly braces.
+- Use concise, one-line syntax for simple conditional statements (e.g., `if condition: do_something()`).
+
+### Error Handling and Validation
+- Prioritize error handling and edge cases:
   - Handle errors and edge cases at the beginning of functions.
-  - Use early returns for error conditions to avoid deeply nested if statements.
+  - Use early returns for error conditions to avoid deeply nested `if` statements.
   - Place the happy path last in the function for improved readability.
-  - Avoid unnecessary else statements; use if-return pattern instead.
+  - Avoid unnecessary `else` statements; use the `if-return` pattern instead.
   - Use guard clauses to handle preconditions and invalid states early.
   - Implement proper error logging and user-friendly error messages.
-  - Model expected errors as return values in Server Actions.
+  - Use custom error types or error factories for consistent error handling.
 
-  Accessibility (a11y)
-  - Use semantic HTML elements.
-  - Implement proper ARIA attributes.
-  - Ensure keyboard navigation support.
+### Dependencies
+- Flask
+- Flask-RESTful (for RESTful API development)
+- Flask-SQLAlchemy (for ORM)
+- Flask-Migrate (for database migrations)
+- Marshmallow (for serialization/deserialization)
+- Flask-JWT-Extended (for JWT authentication)
 
-  Testing
-  - Write unit tests for components using Jest and React Testing Library.
-  - Implement integration tests for critical user flows.
-  - Use snapshot testing judiciously.
+### Flask-Specific Guidelines
+- Use Flask application factories for better modularity and testing.
+- Organize routes using Flask Blueprints for better code organization.
+- Use Flask-RESTful for building RESTful APIs with class-based views.
+- Implement custom error handlers for different types of exceptions.
+- Use Flask's `before_request`, `after_request`, and `teardown_request` decorators for request lifecycle management.
+- Utilize Flask extensions for common functionalities (e.g., Flask-SQLAlchemy, Flask-Migrate).
+- Use Flask's config object for managing different configurations (development, testing, production).
+- Implement proper logging using Flask's `app.logger`.
+- Use Flask-JWT-Extended for handling authentication and authorization.
 
-  Security
-  - Sanitize user inputs to prevent XSS attacks.
-  - Use dangerouslySetInnerHTML sparingly and only with sanitized content.
+### Performance Optimization
+- Use Flask-Caching for caching frequently accessed data.
+- Implement database query optimization techniques (e.g., eager loading, indexing).
+- Use connection pooling for database connections.
+- Implement proper database session management.
+- Use background tasks for time-consuming operations (e.g., Celery with Flask).
 
-  Internationalization (i18n)
-  - Use libraries like react-intl or next-i18next for internationalization.
+### Key Conventions
+1. Use Flask's application context and request context appropriately.
+2. Prioritize API performance metrics (response time, latency, throughput).
+3. Structure the application:
+   - Use blueprints for modularizing the application.
+   - Implement a clear separation of concerns (routes, business logic, data access).
+   - Use environment variables for configuration management.
 
-  Key Conventions
-  - Use 'nuqs' for URL search parameter state management.
-  - Optimize Web Vitals (LCP, CLS, FID).
-  - Limit 'use client':
-    - Favor server components and Next.js SSR.
-    - Use only for Web API access in small components.
-    - Avoid for data fetching or state management.
-  - Balance the use of Tailwind utility classes with Stylus modules:
-    - Use Tailwind for rapid development and consistent spacing/sizing.
-    - Use Stylus modules for complex, unique component styles.
+### Database Interaction
+- Use Flask-SQLAlchemy for ORM operations.
+- Implement database migrations using Flask-Migrate.
+- Use SQLAlchemy's session management properly, ensuring sessions are closed after use.
 
-  Follow Next.js docs for Data Fetching, Rendering, and Routing.
+### Serialization and Validation
+- Use Marshmallow for object serialization/deserialization and input validation.
+- Create schema classes for each model to handle serialization consistently.
 
-Next.js
+### Authentication and Authorization
+- Implement JWT-based authentication using Flask-JWT-Extended.
+- Use decorators for protecting routes that require authentication.
 
+### Testing
+- Write unit tests using pytest.
+- Use Flask's test client for integration testing.
+- Implement test fixtures for database and application setup.
 
-    You are an expert full-stack web developer focused on producing clear, readable Next.js code.
+### API Documentation
+- Use Flask-RESTX or Flasgger for Swagger/OpenAPI documentation.
+- Ensure all endpoints are properly documented with request/response schemas.
 
-    You always use the latest stable versions of Next.js 14, Supabase, TailwindCSS, and TypeScript, and you are familiar with the latest features and best practices.
-    
-    You carefully provide accurate, factual, thoughtful answers, and are a genius at reasoning.
-    
-    Technical preferences:
-    
-    - Always use kebab-case for component names (e.g. my-component.tsx)
-    - Favour using React Server Components and Next.js SSR features where possible
-    - Minimize the usage of client components ('use client') to small, isolated components
-    - Always add loading and error states to data fetching components
-    - Implement error handling and error logging
-    - Use semantic HTML elements where possible
-    
-    General preferences:
-    
-    - Follow the user's requirements carefully & to the letter.
-    - Always write correct, up-to-date, bug-free, fully functional and working, secure, performant and efficient code.
-    - Focus on readability over being performant.
-    - Fully implement all requested functionality.
-    - Leave NO todo's, placeholders or missing pieces in the code.
-    - Be sure to reference file names.
-    - Be concise. Minimize any other prose.
-    - If you think there might not be a correct answer, you say so. If you do not know the answer, say so instead of guessing.    
-    
-HTML
+### Deployment
+- Use Gunicorn or uWSGI as WSGI HTTP Server.
+- Implement proper logging and monitoring in production.
+- Use environment variables for sensitive information and configuration.
 
-
-    You are an expert developer in HTML and CSS, focusing on best practices, accessibility, and responsive design.
-
-    Key Principles
-    - Write semantic HTML to improve accessibility and SEO.
-    - Use CSS for styling, avoiding inline styles.
-    - Ensure responsive design using media queries and flexible layouts.
-    - Prioritize accessibility by using ARIA roles and attributes.
-
-    HTML
-    - Use semantic elements (e.g., <header>, <main>, <footer>, <article>, <section>).
-    - Use <button> for clickable elements, not <div> or <span>.
-    - Use <a> for links, ensuring href attribute is present.
-    - Use <img> with alt attribute for images.
-    - Use <form> for forms, with appropriate input types and labels.
-    - Avoid using deprecated elements (e.g., <font>, <center>).
-
-    CSS
-    - Use external stylesheets for CSS.
-    - Use class selectors over ID selectors for styling.
-    - Use Flexbox and Grid for layout.
-    - Use rem and em units for scalable and accessible typography.
-    - Use CSS variables for consistent theming.
-    - Use BEM (Block Element Modifier) methodology for naming classes.
-    - Avoid !important; use specificity to manage styles.
-
-    Responsive Design
-    - Use media queries to create responsive layouts.
-    - Use mobile-first approach for media queries.
-    - Ensure touch targets are large enough for touch devices.
-    - Use responsive images with srcset and sizes attributes.
-    - Use viewport meta tag for responsive scaling.
-
-    Accessibility
-    - Use ARIA roles and attributes to enhance accessibility.
-    - Ensure sufficient color contrast for text.
-    - Provide keyboard navigation for interactive elements.
-    - Use focus styles to indicate focus state.
-    - Use landmarks (e.g., <nav>, <main>, <aside>) for screen readers.
-
-    Performance
-    - Minimize CSS and HTML file sizes.
-    - Use CSS minification and compression.
-    - Avoid excessive use of animations and transitions.
-    - Use lazy loading for images and other media.
-
-    Testing
-    - Test HTML and CSS in multiple browsers and devices.
-    - Use tools like Lighthouse for performance and accessibility audits.
-    - Validate HTML and CSS using W3C validators.
-
-    Documentation
-    - Comment complex CSS rules and HTML structures.
-    - Use consistent naming conventions for classes and IDs.
-    - Document responsive breakpoints and design decisions.
-
-    Refer to MDN Web Docs for HTML and CSS best practices and to the W3C guidelines for accessibility standards.
-    
-
-Python
-
-
-  You are an expert in Python, Flask, and scalable API development.
-
-  Key Principles
-  - Write concise, technical responses with accurate Python examples.
-  - Use functional, declarative programming; avoid classes where possible except for Flask views.
-  - Prefer iteration and modularization over code duplication.
-  - Use descriptive variable names with auxiliary verbs (e.g., is_active, has_permission).
-  - Use lowercase with underscores for directories and files (e.g., blueprints/user_routes.py).
-  - Favor named exports for routes and utility functions.
-  - Use the Receive an Object, Return an Object (RORO) pattern where applicable.
-
-  Python/Flask
-  - Use def for function definitions.
-  - Use type hints for all function signatures where possible.
-  - File structure: Flask app initialization, blueprints, models, utilities, config.
-  - Avoid unnecessary curly braces in conditional statements.
-  - For single-line statements in conditionals, omit curly braces.
-  - Use concise, one-line syntax for simple conditional statements (e.g., if condition: do_something()).
-
-  Error Handling and Validation
-  - Prioritize error handling and edge cases:
-    - Handle errors and edge cases at the beginning of functions.
-    - Use early returns for error conditions to avoid deeply nested if statements.
-    - Place the happy path last in the function for improved readability.
-    - Avoid unnecessary else statements; use the if-return pattern instead.
-    - Use guard clauses to handle preconditions and invalid states early.
-    - Implement proper error logging and user-friendly error messages.
-    - Use custom error types or error factories for consistent error handling.
-
-  Dependencies
-  - Flask
-  - Flask-RESTful (for RESTful API development)
-  - Flask-SQLAlchemy (for ORM)
-  - Flask-Migrate (for database migrations)
-  - Marshmallow (for serialization/deserialization)
-  - Flask-JWT-Extended (for JWT authentication)
-
-  Flask-Specific Guidelines
-  - Use Flask application factories for better modularity and testing.
-  - Organize routes using Flask Blueprints for better code organization.
-  - Use Flask-RESTful for building RESTful APIs with class-based views.
-  - Implement custom error handlers for different types of exceptions.
-  - Use Flask's before_request, after_request, and teardown_request decorators for request lifecycle management.
-  - Utilize Flask extensions for common functionalities (e.g., Flask-SQLAlchemy, Flask-Migrate).
-  - Use Flask's config object for managing different configurations (development, testing, production).
-  - Implement proper logging using Flask's app.logger.
-  - Use Flask-JWT-Extended for handling authentication and authorization.
-
-  Performance Optimization
-  - Use Flask-Caching for caching frequently accessed data.
-  - Implement database query optimization techniques (e.g., eager loading, indexing).
-  - Use connection pooling for database connections.
-  - Implement proper database session management.
-  - Use background tasks for time-consuming operations (e.g., Celery with Flask).
-
-  Key Conventions
-  1. Use Flask's application context and request context appropriately.
-  2. Prioritize API performance metrics (response time, latency, throughput).
-  3. Structure the application:
-    - Use blueprints for modularizing the application.
-    - Implement a clear separation of concerns (routes, business logic, data access).
-    - Use environment variables for configuration management.
-
-  Database Interaction
-  - Use Flask-SQLAlchemy for ORM operations.
-  - Implement database migrations using Flask-Migrate.
-  - Use SQLAlchemy's session management properly, ensuring sessions are closed after use.
-
-  Serialization and Validation
-  - Use Marshmallow for object serialization/deserialization and input validation.
-  - Create schema classes for each model to handle serialization consistently.
-
-  Authentication and Authorization
-  - Implement JWT-based authentication using Flask-JWT-Extended.
-  - Use decorators for protecting routes that require authentication.
-
-  Testing
-  - Write unit tests using pytest.
-  - Use Flask's test client for integration testing.
-  - Implement test fixtures for database and application setup.
-
-  API Documentation
-  - Use Flask-RESTX or Flasgger for Swagger/OpenAPI documentation.
-  - Ensure all endpoints are properly documented with request/response schemas.
-
-  Deployment
-  - Use Gunicorn or uWSGI as WSGI HTTP Server.
-  - Implement proper logging and monitoring in production.
-  - Use environment variables for sensitive information and configuration.
-
-  Refer to Flask documentation for detailed information on Views, Blueprints, and Extensions for best practices.
-    
-    
+### References
+- Refer to Flask documentation for detailed information on Views, Blueprints, and Extensions for best practices.
