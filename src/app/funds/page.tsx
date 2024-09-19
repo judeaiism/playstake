@@ -7,15 +7,25 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ArrowDownIcon, ArrowUpIcon, DollarSignIcon, SparklesIcon } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast";
+import { getUserBalance, createOrder } from '@/lib/firebase/firestore';
+import { useAuth } from '@/lib/auth'; // Assuming you have an auth context
 
 export default function FundsPage() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isFlashing, setIsFlashing] = useState(false)
   const [depositAmount, setDepositAmount] = useState("")
   const [withdrawAmount, setWithdrawAmount] = useState("")
   const [showAllTransactions, setShowAllTransactions] = useState(false)
   const [isAtlosLoaded, setIsAtlosLoaded] = useState(false);
   const [atlosError, setAtlosError] = useState<string | null>(null);
+  const [balance, setBalance] = useState(0);
+
+  useEffect(() => {
+    if (user) {
+      getUserBalance(user.uid).then(setBalance);
+    }
+  }, [user]);
 
   useEffect(() => {
     const flashInterval = setInterval(() => {
@@ -45,7 +55,7 @@ export default function FundsPage() {
   }, []);
 
   const handleAtlosPayment = () => {
-    if (isAtlosLoaded && window.atlos) {
+    if (isAtlosLoaded && window.atlos && user) {
       const amount = parseFloat(depositAmount);
       if (isNaN(amount) || amount <= 0) {
         toast({
@@ -56,9 +66,20 @@ export default function FundsPage() {
         return;
       }
 
+      const merchantId = process.env.NEXT_PUBLIC_ATLOS_MERCHANT_ID;
+      if (!merchantId) {
+        console.error('ATLOS Merchant ID is not set');
+        toast({
+          title: "Configuration Error",
+          description: "Payment system is not properly configured. Please contact support.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       console.log('Initiating ATLOS payment');
       const paymentDetails = {
-        merchantId: process.env.NEXT_PUBLIC_ATLOS_MERCHANT_ID, // Use an environment variable
+        merchantId,
         orderId: `deposit-${Date.now()}`,
         orderAmount: amount,
         orderCurrency: 'USD',
@@ -91,7 +112,7 @@ export default function FundsPage() {
             variant: "destructive",
           });
         },
-        theme: 'light',
+        theme: 'light' as const,
       };
 
       console.log('Payment details:', JSON.stringify(paymentDetails, null, 2));
@@ -162,7 +183,7 @@ export default function FundsPage() {
           <CardContent>
             <div className="flex items-center justify-center">
               <DollarSignIcon className="mr-2 h-8 w-8 text-green-500" />
-              <span className="text-5xl font-bold text-green-500">0</span>
+              <span className="text-5xl font-bold text-green-500">{balance.toFixed(2)}</span>
             </div>
           </CardContent>
         </Card>
