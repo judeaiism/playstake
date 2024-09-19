@@ -55,6 +55,8 @@ import { onAuthStateChanged } from 'firebase/auth'
 import { auth } from '@/lib/firebase/firebase'
 import { toast } from 'react-hot-toast'
 import { User } from '@/types/user';
+import { useBalance } from '@/hooks/useBalance';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 const profileFormSchema = z.object({
   username: z.string().min(2, {
@@ -117,6 +119,7 @@ export default function Dashboard() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<string[]>([])
   const [transactionStatus, setTransactionStatus] = useState<string | null>(null);
+  const { balance } = useBalance(user?.uid);
 
   const form = useForm<z.infer<typeof profileFormSchema>>({
     resolver: zodResolver(profileFormSchema),
@@ -358,6 +361,11 @@ export default function Dashboard() {
   }
 
   const handleAcceptChallenge = async (challengeId: string) => {
+    if (balance <= 0) {
+      toast.error("You don't have sufficient funds to accept a challenge.");
+      return;
+    }
+
     setIsAccepting(true)
     setAcceptProgress(0)
     setChallengeModalOpen(true)
@@ -592,6 +600,11 @@ export default function Dashboard() {
 
   const handleChallenge = async (betAmount: number) => {
     if (!user || !selectedOpponent) return;
+
+    if (balance <= 0) {
+      toast.error("You don't have sufficient funds to start a challenge.");
+      return;
+    }
 
     try {
       console.log('Creating challenge...');
@@ -1142,13 +1155,6 @@ export default function Dashboard() {
                   <CardTitle className="text-2xl font-bold text-yellow-400">Find Users to Bet</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <Button
-                    variant="default"
-                    size="medium"
-                    className="w-full bg-yellow-400 hover:bg-yellow-500 text-indigo-900 font-bold"
-                  >
-                    Online
-                  </Button>
                   <div className="flex items-center space-x-2">
                     <Input
                       type="text"
@@ -1169,31 +1175,41 @@ export default function Dashboard() {
                         {allUsers
                           .filter(user => user.username.toLowerCase().includes(searchQuery.toLowerCase()))
                           .map((opponent) => (
-                            <div key={opponent.id} className="flex items-center justify-between bg-indigo-700 p-2 rounded-lg">
-                              <div className="flex items-center space-x-2">
-                                <Avatar>
-                                  <AvatarImage src={opponent.avatarUrl || undefined} alt={opponent.username} />
-                                  <AvatarFallback>{opponent.username[0]}</AvatarFallback>
-                                </Avatar>
-                                <div className="flex flex-col">
-                                  <span className="text-white">{opponent.username}</span>
-                                  <Badge 
-                                    variant={onlineUsers.includes(opponent.id) ? "success" : "secondary"}
-                                    className="text-xs"
-                                  >
-                                    {onlineUsers.includes(opponent.id) ? "Online" : "Offline"}
-                                  </Badge>
-                                </div>
-                              </div>
-                              <ShinyButton
-                                text="Challenge"
-                                className="bg-yellow-400 hover:bg-yellow-500 text-indigo-900"
-                                onClick={() => {
-                                  setSelectedOpponent(opponent)
-                                  setChallengeModalOpen(true)
-                                }}
-                              />
-                            </div>
+                            <TooltipProvider key={opponent.id}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className="flex items-center justify-between bg-indigo-700 p-2 rounded-lg">
+                                    <div className="flex items-center space-x-2">
+                                      <Avatar>
+                                        <AvatarImage src={opponent.avatarUrl || undefined} alt={opponent.username} />
+                                        <AvatarFallback>{opponent.username[0]}</AvatarFallback>
+                                      </Avatar>
+                                      <span className="text-white">{opponent.username}</span>
+                                    </div>
+                                    <ShinyButton
+                                      text="Challenge"
+                                      className={`bg-yellow-400 hover:bg-yellow-500 text-indigo-900 ${balance <= 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                      onClick={() => {
+                                        if (balance <= 0) {
+                                          toast.error("You don't have sufficient funds to start a challenge.");
+                                        } else {
+                                          setSelectedOpponent(opponent);
+                                          setChallengeModalOpen(true);
+                                        }
+                                      }}
+                                      disabled={balance <= 0}
+                                    />
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  {balance <= 0 ? (
+                                    <p>Top up your balance to challenge users</p>
+                                  ) : (
+                                    <p>Click to challenge this user</p>
+                                  )}
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                           ))}
                       </div>
                     )}
@@ -1307,7 +1323,8 @@ export default function Dashboard() {
                                   <Button 
                                     size="small" 
                                     onClick={() => handleAcceptChallenge(notification.challengeId)}
-                                    className="bg-green-500 hover:bg-green-600 text-white"
+                                    className={`bg-green-500 hover:bg-green-600 text-white ${balance <= 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    disabled={balance <= 0}
                                   >
                                     Accept
                                   </Button>
