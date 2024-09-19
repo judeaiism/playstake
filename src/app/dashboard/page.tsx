@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { doc, getDoc, setDoc, updateDoc, DocumentData, collection, getDocs, query, where, onSnapshot, addDoc, or, Query, QuerySnapshot, arrayUnion, orderBy, increment } from 'firebase/firestore'
-import { db } from '@/lib/firebase'
+import { db } from '@/lib/firebase/firebase'
 import { Progress } from "@/components/ui/progress"
 import BoxReveal from "@/components/magicui/box-reveal"
 import { Button } from "@/components/ui/button"
@@ -49,12 +49,10 @@ import {
 import Link from 'next/link'
 import SparklesText from "@/components/magicui/sparkles-text"
 import Image from 'next/image'
-import { useTransactionListener } from '@/hooks/useTransactionListener'
-import { BalanceManagement } from '@/components/dashboard/BalanceManagement'
 import { ChallengeModal } from '@/components/challenge-modal'
 import { signOut } from '@/lib/auth'
 import { onAuthStateChanged } from 'firebase/auth'
-import { auth } from '@/lib/firebase'
+import { auth } from '@/lib/firebase/firebase'
 import { toast } from 'react-hot-toast'
 import { User } from '@/types/user';
 
@@ -78,7 +76,6 @@ export default function Dashboard() {
   const [progress, setProgress] = useState(0)
 
   const [flashWin, setFlashWin] = useState(false)
-  const [balance, setBalance] = useState(0)
   const [searchQuery, setSearchQuery] = useState('')
   const [betOption, setBetOption] = useState("online")
   const [isEditing, setIsEditing] = useState(false)
@@ -115,6 +112,7 @@ export default function Dashboard() {
     };
     game: string;
     timestamp: string;
+    winner: string;
   }>>([])
   const [notifications, setNotifications] = useState<any[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<string[]>([])
@@ -203,6 +201,7 @@ export default function Dashboard() {
             if (userDocSnap.exists()) {
               const data = userDocSnap.data()
               setUserData(data)
+              setRecentMatches(data.recentMatches || [])
               form.reset({
                 username: data.username || "",
                 psnName: data.psnName || "",
@@ -430,16 +429,6 @@ export default function Dashboard() {
     }
   }
 
-  const handleAddBalance = () => {
-    setBalance(prevBalance => prevBalance + 100)
-  }
-
-  const handleWithdraw = () => {
-    if (balance >= 100) {
-      setBalance(prevBalance => prevBalance - 100)
-    }
-  }
-
   const handleEditProfile = () => {
     if (isEditing) {
       // Save profile
@@ -553,7 +542,7 @@ export default function Dashboard() {
         opponentUsername: opponentData.username,
         game: challenge.game || 'Unknown Game',
         date: new Date().toISOString(),
-        betAmount: challenge.betAmount,
+        betAmount: challenge.betAmount || 0, // Add a fallback value
         challengerScore: challenge.challengerScore,
         opponentScore: challenge.opponentScore,
         winner: challenge.challengerScore > challenge.opponentScore ? challenge.challengerId : challenge.opponentId
@@ -581,7 +570,8 @@ export default function Dashboard() {
           avatarUrl: opponentData.avatarUrl || null
         },
         game: challenge.game || 'Unknown Game',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        winner: challenge.challengerScore > challenge.opponentScore ? 'challenger' : 'opponent'
       }
 
       // Update local state
@@ -640,14 +630,11 @@ export default function Dashboard() {
     }
   }
 
-  useTransactionListener()
-
   useEffect(() => {
     if (user) {
       const userRef = doc(db, 'users', user.uid);
       const unsubscribe = onSnapshot(userRef, (doc) => {
         if (doc.exists()) {
-          setBalance(doc.data().balance || 0);
           if (doc.data().lastTransaction) {
             setTransactionStatus(`Last transaction: ${doc.data().lastTransaction.status}`);
           }
@@ -822,6 +809,11 @@ export default function Dashboard() {
               />
               <div className="flex items-center space-x-2">
                 <Badge variant="secondary" className="bg-yellow-400 text-purple-900">VIP</Badge>
+                <Link href="/funds">
+                  <Button variant="secondary" size="small" className="bg-yellow-400 text-purple-900 hover:bg-yellow-500">
+                    Manage Funds
+                  </Button>
+                </Link>
                 <DropdownMenu>
                   <DropdownMenuTrigger>
                     <Avatar>
@@ -1128,6 +1120,10 @@ export default function Dashboard() {
                                 {match.challenger.username} vs {match.opponent.username}
                               </p>
                               <p className="text-sm text-gray-400">{match.game}</p>
+                              <p className="text-sm text-gray-400">
+                                Winner: {match.winner === 'challenger' ? match.challenger.username : 
+                                          match.winner === 'opponent' ? match.opponent.username : 'Draw'}
+                              </p>
                             </div>
                           </div>
                         </div>
@@ -1140,12 +1136,8 @@ export default function Dashboard() {
           </div>
 
           <div className="grid gap-6 md:grid-cols-2">
-            <BoxReveal width="100%" boxColor="#00008B">
-              <BalanceManagement balance={balance} />
-            </BoxReveal>
-
             <BoxReveal width="100%" boxColor="#4B0082">
-              <Card className="col-span-2 md:col-span-1 bg-gradient-to-br from-purple-800 to-purple-900 border-4 border-yellow-400 shadow-lg">
+              <Card className="col-span-2 bg-gradient-to-br from-purple-800 to-purple-900 border-4 border-yellow-400 shadow-lg">
                 <CardHeader>
                   <CardTitle className="text-2xl font-bold text-yellow-400">Find Users to Bet</CardTitle>
                 </CardHeader>

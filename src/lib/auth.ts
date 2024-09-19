@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { signOut as firebaseSignOut, Auth, User, onAuthStateChanged } from 'firebase/auth'
 import { doc, updateDoc, Firestore } from 'firebase/firestore'
-import { auth as firebaseAuth, db as firebaseDb } from './firebase'
+import { auth as firebaseAuth, db as firebaseDb } from './firebase/firebase'
 
 // Explicitly type the imported auth and db
 const auth: Auth = firebaseAuth

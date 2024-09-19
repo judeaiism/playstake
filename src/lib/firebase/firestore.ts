@@ -1,4 +1,4 @@
-import { getFirestore, doc, getDoc, setDoc, updateDoc, runTransaction } from 'firebase/firestore';
+import { getFirestore, doc, getDoc, setDoc, updateDoc, runTransaction, increment } from 'firebase/firestore';
 import { app } from './firebase'; // Ensure this file exists and initializes Firebase
 
 const db = getFirestore(app);
@@ -17,31 +17,18 @@ export async function createOrder(orderId: string, userId: string, amount: numbe
   await setDoc(orderRef, { userId, amount, status: 'pending' });
 }
 
-export async function updateUserBalance(orderId: string, amount: number): Promise<void> {
-  await runTransaction(db, async (transaction) => {
-    const orderRef = doc(db, 'orders', orderId);
-    const orderDoc = await transaction.get(orderRef);
-    
-    if (!orderDoc.exists()) {
-      throw new Error(`Order ${orderId} not found`);
-    }
+export async function updateUserBalance(orderId: string, amount: number) {
+  const orderRef = doc(db, 'orders', orderId);
+  const orderDoc = await getDoc(orderRef);
 
-    const userId = orderDoc.data()?.userId;
-    if (!userId) {
-      throw new Error(`User ID not found for order ${orderId}`);
-    }
+  if (!orderDoc.exists()) {
+    throw new Error('Order not found');
+  }
 
-    const userRef = doc(db, 'users', userId);
-    const userDoc = await transaction.get(userRef);
-    
-    if (!userDoc.exists()) {
-      throw new Error(`User ${userId} not found`);
-    }
+  const userId = orderDoc.data().userId;
+  const userRef = doc(db, 'users', userId);
 
-    const currentBalance = userDoc.data()?.balance || 0;
-    const newBalance = currentBalance + amount;
-
-    transaction.update(userRef, { balance: newBalance });
-    transaction.update(orderRef, { status: 'completed' });
+  await updateDoc(userRef, {
+    balance: increment(amount)
   });
 }

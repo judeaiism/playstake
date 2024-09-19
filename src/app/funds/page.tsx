@@ -21,9 +21,16 @@ export default function FundsPage() {
   const [atlosError, setAtlosError] = useState<string | null>(null);
   const [balance, setBalance] = useState(0);
 
+  const fetchUpdatedBalance = async () => {
+    if (user) {
+      const updatedBalance = await getUserBalance(user.uid);
+      setBalance(updatedBalance);
+    }
+  };
+
   useEffect(() => {
     if (user) {
-      getUserBalance(user.uid).then(setBalance);
+      fetchUpdatedBalance();
     }
   }, [user]);
 
@@ -138,16 +145,15 @@ export default function FundsPage() {
     }
   };
 
-  const handleDeposit = (transactionDetails: any) => {
+  const handleDeposit = async (transactionDetails: any) => {
     console.log("Deposit successful:", transactionDetails);
-    // Here you would typically update the user's balance in your backend
-    // and then update the UI to reflect the new balance
     toast({
       title: "Deposit Successful",
       description: `Successfully deposited ${depositAmount} USD`,
       variant: "default",
     });
     setDepositAmount("");
+    await fetchUpdatedBalance();
   };
 
   const handleWithdraw = () => {

@@ -7,6 +7,9 @@ const nextConfig = {
     MASTER_SEED: process.env.MASTER_SEED,
     HOT_WALLET_PRIVATE_KEY: process.env.HOT_WALLET_PRIVATE_KEY,
   },
+  images: {
+    domains: ['firebasestorage.googleapis.com'],
+  },
 }
 
 module.exports = nextConfig

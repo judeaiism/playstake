@@ -1,4 +1,4 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { updateUserBalance } from '@/lib/firebase/firestore';
 
@@ -11,19 +11,17 @@ function verifySignature(apiSecret: string, signature: string, messageData: stri
   return messageSignature === signature;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method Not Allowed' });
-  }
-
-  const signature = req.headers['signature'] as string;
+export async function POST(request: Request) {
+  const signature = request.headers.get('signature');
   if (!signature) {
-    return res.status(400).json({ error: 'Missing signature' });
+    return NextResponse.json({ error: 'Missing signature' }, { status: 400 });
   }
 
-  const messageData = JSON.stringify(req.body);
+  const body = await request.json();
+  const messageData = JSON.stringify(body);
+  
   if (!API_SECRET || !verifySignature(API_SECRET, signature, messageData)) {
-    return res.status(401).json({ error: 'Invalid signature' });
+    return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
   }
 
   const {
@@ -34,19 +32,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     OrderAmount,
     OrderCurrency,
     Status
-  } = req.body;
+  } = body;
 
   if (Status !== 100) {
-    return res.status(200).json({ message: 'Transaction not confirmed yet' });
+    return NextResponse.json({ message: 'Transaction not confirmed yet' }, { status: 200 });
   }
 
   try {
     await updateUserBalance(OrderId, parseFloat(OrderAmount));
     console.log(`Updated balance for order ${OrderId}: ${OrderAmount} ${OrderCurrency}`);
 
-    res.status(200).json({ message: 'Balance updated successfully' });
+    return NextResponse.json({ message: 'Balance updated successfully' }, { status: 200 });
   } catch (error) {
     console.error('Error updating balance:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

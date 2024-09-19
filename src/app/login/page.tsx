@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import GridPattern from '@/components/magicui/grid-pattern'
 import { signInWithEmailAndPassword } from 'firebase/auth'
-import { auth } from '@/lib/firebase'
+import { auth } from '@/lib/firebase/firebase'
 import { useAuth } from '@/hooks/useAuth'
 
 export default function LoginPage() {

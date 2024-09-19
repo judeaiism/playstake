@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { doc, getDoc, onSnapshot, updateDoc, DocumentReference, Firestore, collection, increment, addDoc, serverTimestamp } from 'firebase/firestore'
-import { db } from '@/lib/firebase'
+import { doc, getDoc, onSnapshot, updateDoc, DocumentReference, Firestore, collection, increment, addDoc, serverTimestamp, arrayUnion } from 'firebase/firestore'
+import { db } from '@/lib/firebase/firebase'
 import { useAuth } from '@/hooks/useAuth'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Info, Clock, Trophy, AlertTriangle, PlusCircle, MinusCircle } from 'lucide-react'
@@ -126,7 +126,7 @@ export default function GamePage({ params }: { params: { challengeId: string } }
         opponentScore: scores.opponent,
         endTime: new Date().toISOString(),
         winner: selectedWinner,
-        betAmount: challenge.betAmount,
+        betAmount: challenge.betAmount || 0,
         duration: matchTime,
         challengerId: challenge.challengerId,
         opponentId: challenge.opponentId,
@@ -135,26 +135,56 @@ export default function GamePage({ params }: { params: { challengeId: string } }
         game: challenge.game || 'Unknown Game'
       }
 
-      // Update challenge document
+      console.log('Updating challenge document:', params.challengeId, matchResult)
       await updateDocument('challenges', params.challengeId, matchResult)
 
-      // Add match result to 'matchResults' collection
+      console.log('Adding match result to matchResults collection')
       await addDocument('matchResults', matchResult)
 
-      // Update user balances
-      if (selectedWinner !== 'draw') {
+      if (selectedWinner !== 'draw' && challenge.betAmount) {
         const winnerId = selectedWinner === 'challenger' ? challenge.challengerId : challenge.opponentId
         const loserId = selectedWinner === 'challenger' ? challenge.opponentId : challenge.challengerId
 
+        console.log('Updating winner balance:', winnerId, challenge.betAmount)
         await incrementField('users', winnerId, 'balance', challenge.betAmount)
+
+        console.log('Updating loser balance:', loserId, -challenge.betAmount)
         await incrementField('users', loserId, 'balance', -challenge.betAmount)
       }
+
+      const newMatch = {
+        challenger: {
+          username: challengerData.username,
+          avatarUrl: challengerData.avatarUrl || null
+        },
+        opponent: {
+          username: opponentData.username,
+          avatarUrl: opponentData.avatarUrl || null
+        },
+        game: challenge.game || 'Unknown Game',
+        timestamp: new Date().toISOString(),
+        winner: selectedWinner
+      }
+
+      console.log('Updating challenger recent matches:', challenge.challengerId)
+      await updateDocument('users', challenge.challengerId, {
+        recentMatches: arrayUnion(newMatch)
+      })
+
+      console.log('Updating opponent recent matches:', challenge.opponentId)
+      await updateDocument('users', challenge.opponentId, {
+        recentMatches: arrayUnion(newMatch)
+      })
 
       toast.success('Match ended successfully')
       router.push('/dashboard')
     } catch (error) {
       console.error('Error ending match:', error)
-      // The error is already handled in the useFirestore hook
+      if (error instanceof FirebaseError) {
+        console.error('Firebase error code:', error.code)
+        console.error('Firebase error message:', error.message)
+      }
+      toast.error(`Failed to end match: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
