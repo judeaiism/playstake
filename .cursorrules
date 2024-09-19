@@ -1,4 +1,6 @@
-    - Always give file names and file location 100% of the time.
+    - Always give file names and paths 100% of the time.
+    - Always give the full path including the file name and extension.
+    - We are working in a real world environment and scenario.
 
 ## General Rules
 - Always provide file names, folders, and file locations 100% of the time.
