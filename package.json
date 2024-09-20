@@ -32,6 +32,7 @@
     "@radix-ui/react-select": "^2.1.1",
     "@radix-ui/react-slot": "^1.1.0",
     "@radix-ui/react-switch": "^1.1.0",
+    "@radix-ui/react-tabs": "^1.1.0",
     "@radix-ui/react-toast": "^1.2.1",
     "@radix-ui/react-toggle": "^1.1.0",
     "@radix-ui/react-toggle-group": "^1.1.0",
@@ -50,7 +51,7 @@
     "embla-carousel-react": "^8.3.0",
     "firebase": "^10.13.1",
     "firebase-admin": "^12.5.0",
-    "framer-motion": "^11.5.4",
+    "framer-motion": "^11.5.5",
     "hdkey": "^2.1.0",
     "lucide-react": "^0.441.0",
     "next": "^14.2.11",
@@ -88,6 +89,8 @@
     "postcss": "^8.4.45",
     "stylelint": "^16.9.0",
     "stylelint-config-standard": "^36.0.1",
+    "stylus": "^0.63.0",
+    "stylus-loader": "^8.1.1",
     "tailwindcss": "^3.4.11",
     "typescript": "^5"
   }

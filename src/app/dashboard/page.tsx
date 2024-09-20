@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { doc, getDoc, setDoc, updateDoc, DocumentData, collection, getDocs, query, where, onSnapshot, addDoc, or, Query, QuerySnapshot, arrayUnion, orderBy, increment } from 'firebase/firestore'
-import { db } from '@/lib/firebase/firebase'
+import { db, auth, firebaseConfig } from '@/lib/firebase/firebase'
 import { Progress } from "@/components/ui/progress"
 import BoxReveal from "@/components/magicui/box-reveal"
 import { Button } from "@/components/ui/button"
@@ -52,11 +52,12 @@ import Image from 'next/image'
 import { ChallengeModal } from '@/components/challenge-modal'
 import { signOut } from '@/lib/auth'
 import { onAuthStateChanged } from 'firebase/auth'
-import { auth } from '@/lib/firebase/firebase'
 import { toast } from 'react-hot-toast'
 import { User } from '@/types/user';
 import { useBalance } from '@/hooks/useBalance';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { AnimatedList } from "@/components/magicui/animated-list"
+import { TvIcon } from 'lucide-react'
 
 const profileFormSchema = z.object({
   username: z.string().min(2, {
@@ -70,10 +71,40 @@ const profileFormSchema = z.object({
   }),
 })
 
+// Define the Match type
+type Match = {
+  challenger: {
+    username: string;
+    avatarUrl?: string;
+  };
+  opponent: {
+    username: string;
+    avatarUrl?: string;
+  };
+  game: string;
+  timestamp: string;
+  winner: string; // 'challenger', 'opponent', or 'draw'
+};
+
+// Define the UserData type
+type UserData = {
+  id: string;
+  username: string;
+  psnName: string;
+  email: string;
+  recentMatches: Match[];
+  totalMatches: number;
+  winRate: number;
+  rank: number;
+  avatarUrl?: string;
+  createdAt: string;
+  // Add other necessary properties if needed
+}
+
 export default function Dashboard() {
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
-  const [userData, setUserData] = useState<DocumentData | null>(null)
+  const [userData, setUserData] = useState<UserData | null>(null)
   const [loading, setLoading] = useState(true)
   const [progress, setProgress] = useState(0)
 
@@ -120,6 +151,10 @@ export default function Dashboard() {
   const [onlineUsers, setOnlineUsers] = useState<string[]>([])
   const [transactionStatus, setTransactionStatus] = useState<string | null>(null);
   const { balance } = useBalance(user?.uid);
+
+  const [totalMatches, setTotalMatches] = useState(0)
+  const [winRate, setWinRate] = useState(0)
+  const [rank, setRank] = useState(0)
 
   const form = useForm<z.infer<typeof profileFormSchema>>({
     resolver: zodResolver(profileFormSchema),
@@ -202,7 +237,7 @@ export default function Dashboard() {
             
             setProgress(50)
             if (userDocSnap.exists()) {
-              const data = userDocSnap.data()
+              const data = userDocSnap.data() as UserData
               setUserData(data)
               setRecentMatches(data.recentMatches || [])
               form.reset({
@@ -211,11 +246,17 @@ export default function Dashboard() {
                 email: data.email || "",
               })
             } else {
-              const newUserData = {
+              const newUserData: UserData = {
+                id: user.uid,
                 email: user.email || '',
                 username: user.displayName || user.email?.split('@')[0] || 'User',
                 psnName: "",
+                recentMatches: [],
+                totalMatches: 0,
+                winRate: 0,
+                rank: 0,
                 createdAt: new Date().toISOString(),
+                // avatarUrl: '', // Optional: Initialize if needed
               }
               await setDoc(userDocRef, newUserData)
               setUserData(newUserData)
@@ -475,7 +516,12 @@ export default function Dashboard() {
         psnName: values.psnName,
         email: values.email,
       })
-      setUserData(prevData => ({ ...prevData, ...values }))
+      setUserData(prevData => ({
+        ...prevData,
+        username: values.username,
+        psnName: values.psnName,
+        email: values.email,
+      } as UserData))
       setIsEditing(false)
       // Optionally, show a success message
     } catch (error) {
@@ -681,6 +727,54 @@ export default function Dashboard() {
       return () => unsubscribe();
     }
   }, [user]);
+
+  useEffect(() => {
+    if (userData) {
+      // Calculate total matches
+      setTotalMatches(userData.recentMatches.length)
+
+      // Calculate win rate
+      const wins = userData.recentMatches.filter(match => 
+        (match.winner === 'challenger' && match.challenger.username === userData.username) ||
+        (match.winner === 'opponent' && match.opponent.username === userData.username)
+      ).length
+      const calculatedWinRate = userData.recentMatches.length > 0 ? (wins / userData.recentMatches.length) * 100 : 0
+      setWinRate(calculatedWinRate)
+
+      // Calculate rank
+      const calculateRank = async () => {
+        const usersRef = collection(db, 'users')
+        const usersSnapshot = await getDocs(usersRef)
+        const usersData = usersSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...(doc.data() as Partial<UserData>)
+        }))
+
+        // Calculate win rates for all users
+        const userWinRates = usersData.map(user => {
+          const userMatches: Match[] = user.recentMatches || []
+          const userWins = userMatches.filter(match =>
+            (match.winner === 'challenger' && match.challenger.username === user.username) ||
+            (match.winner === 'opponent' && match.opponent.username === user.username)
+          ).length
+          const winRate = userMatches.length > 0 ? (userWins / userMatches.length) * 100 : 0
+          return {
+            id: user.id,
+            winRate: winRate
+          }
+        })
+
+        // Sort users by win rate in descending order
+        userWinRates.sort((a, b) => b.winRate - a.winRate)
+
+        // Find the current user's rank
+        const userRank = userWinRates.findIndex(user => user.id === userData.id) + 1
+        setRank(userRank)
+      }
+
+      calculateRank()
+    }
+  }, [userData])
 
   if (authLoading || loading) {
     return (
@@ -944,9 +1038,9 @@ export default function Dashboard() {
           <BoxReveal width="100%" boxColor="#4B0082">
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
               {[
-                { title: "Total Matches", value: "0", icon: Gamepad },
-                { title: "Win Rate", value: "0%", icon: Award },
-                { title: "Rank", value: "#0", icon: Award },
+                { title: "Total Matches", value: totalMatches.toString(), icon: Gamepad },
+                { title: "Win Rate", value: `${winRate.toFixed(1)}%`, icon: Award },
+                { title: "Rank", value: `#${rank}`, icon: Award },
                 { title: "Game", value: "FIFA 1v1", icon: Gamepad },
               ].map((item, index) => (
                 <Card key={index} className="bg-gradient-to-br from-yellow-600 to-yellow-800 border-4 border-yellow-400 shadow-lg overflow-hidden group">
@@ -1122,6 +1216,16 @@ export default function Dashboard() {
                     className="w-full bg-yellow-400 hover:bg-yellow-500 text-red-900 font-bold"
                     onClick={handleLocationSearch}
                   />
+                  <Link href="/live" passHref className="relative group">
+                    <Button 
+                      variant="default" 
+                      className="w-full gap-2 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white transition-all duration-300 ease-in-out transform group-hover:scale-105"
+                    >
+                      <TvIcon className="h-5 w-5" />
+                      Live Matches
+                    </Button>
+                    <div className="absolute -inset-0.5 bg-gradient-to-r from-pink-600 to-purple-600 rounded-lg blur opacity-30 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
+                  </Link>
                 </CardContent>
               </Card>
             </BoxReveal>
@@ -1134,16 +1238,16 @@ export default function Dashboard() {
                 <CardContent>
                   <ScrollArea className="h-[200px]">
                     <div className="space-y-4 pr-4">
-                      {recentMatches.map((match, index) => (
+                      {recentMatches.map((match: Match, index: number) => (
                         <div key={index} className="flex items-center justify-between">
                           <div className="flex items-center space-x-4">
                             <Avatar>
-                              <AvatarImage src={match.challenger.avatarUrl} alt={match.challenger.username} />
+                              <AvatarImage src={match.challenger.avatarUrl ?? undefined} alt={match.challenger.username} />
                               <AvatarFallback>{match.challenger.username[0].toUpperCase()}</AvatarFallback>
                             </Avatar>
                             <span className="text-sm font-medium text-yellow-400">vs</span>
                             <Avatar>
-                              <AvatarImage src={match.opponent.avatarUrl} alt={match.opponent.username} />
+                              <AvatarImage src={match.opponent.avatarUrl ?? undefined} alt={match.opponent.username} />
                               <AvatarFallback>{match.opponent.username[0].toUpperCase()}</AvatarFallback>
                             </Avatar>
                             <div>
@@ -1266,35 +1370,6 @@ export default function Dashboard() {
             </Card>
           </BoxReveal>
 
-          <BoxReveal width="100%" boxColor="#8B4513">
-            <Card className="bg-gradient-to-br from-orange-800 to-orange-900 border-4 border-yellow-400 shadow-lg">
-              <CardHeader>
-                <CardTitle className="text-2xl font-bold text-yellow-400">Top Win Ratios</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {[
-                  { rank: 1, name: "MoneyMaker", winRatio: 0.75 },
-                  { rank: 2, name: "LuckyStreak", winRatio: 0.68 },
-                  { rank: 3, name: "BetKing", winRatio: 0.72 },
-                ].map((player) => (
-                  <div key={player.rank} className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <span className={`font-bold text-2xl ${flashWin ? 'text-yellow-400' : 'text-white'} transition-colors duration-300`}>{player.rank}</span>
-                      <Avatar>
-                        <AvatarFallback>{player.name[0]}</AvatarFallback>
-                      </Avatar>
-                      <span className="font-medium text-yellow-400">{player.name}</span>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <Percent className="h-5 w-5 text-blue-400" />
-                      <span className={`${flashWin ? 'text-yellow-400' : 'text-white'} font-bold transition-colors duration-300`}>{(player.winRatio * 100).toFixed(1)}%</span>
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          </BoxReveal>
-
           <BoxReveal width="100%" boxColor="#008080">
             <Card className="bg-gradient-to-br from-teal-800 to-teal-900 border-4 border-yellow-400 shadow-lg">
               <CardHeader>
@@ -1302,66 +1377,52 @@ export default function Dashboard() {
                 <CardDescription className="text-white">You have {notifications.length} unread messages.</CardDescription>
               </CardHeader>
               <CardContent className="grid gap-4">
-                <div className="flex items-center space-x-4 rounded-md border border-teal-700 p-4">
-                  <BellIcon className="text-yellow-400" />
-                  <div className="flex-1 space-y-1">
-                    <p className="text-sm font-medium leading-none text-white">
-                      Push Notifications
-                    </p>
-                    <p className="text-sm text-teal-300">
-                      Send notifications to device.
-                    </p>
-                  </div>
-                  <Switch className="bg-teal-700 data-[state=checked]:bg-yellow-400" />
-                </div>
-                <ScrollArea className="h-[200px] w-full rounded-md border border-teal-700 p-4">
-                  <div className="pr-4">
-                    {notifications.map((notification) => (
-                      <div
-                        key={notification.id}
-                        className="mb-4 grid grid-cols-[25px_1fr] items-start pb-4 last:mb-0 last:pb-0"
-                      >
-                        <span className="flex h-2 w-2 translate-y-1 rounded-full bg-yellow-400" />
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium leading-none text-white">
-                            {notification.message}
-                          </p>
-                          <p className="text-sm text-teal-300">
-                            {new Date(notification.createdAt).toLocaleString()}
-                          </p>
-                          {notification.type === 'challenge' && (
-                            <>
-                              <p className="text-sm font-medium text-yellow-400">
-                                Bet Amount: ${notification.betAmount}
-                              </p>
-                              {isAccepting && notification.challengeId === activeChallenge ? (
-                                <Progress value={acceptProgress} className="w-full mt-2" />
-                              ) : (
-                                <div className="flex space-x-2 mt-2">
-                                  <Button 
-                                    size="small" 
-                                    onClick={() => handleAcceptChallenge(notification.challengeId)}
-                                    className={`bg-green-500 hover:bg-green-600 text-white ${balance < notification.betAmount ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                    disabled={balance < notification.betAmount}
-                                  >
-                                    Accept
-                                  </Button>
-                                  <Button 
-                                    size="small" 
-                                    onClick={() => handleDeclineChallenge(notification.challengeId)}
-                                    className="bg-red-500 hover:bg-red-600 text-white"
-                                  >
-                                    Decline
-                                  </Button>
-                                </div>
-                              )}
-                            </>
-                          )}
-                        </div>
+                <AnimatedList className="space-y-4 pr-4">
+                  {notifications.map((notification) => (
+                    <div
+                      key={notification.id}
+                      className="flex items-start space-x-4"
+                    >
+                      <span className="flex h-2 w-2 translate-y-1 rounded-full bg-yellow-400" />
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium leading-none text-white">
+                          {notification.message}
+                        </p>
+                        <p className="text-sm text-teal-300">
+                          {new Date(notification.createdAt).toLocaleString()}
+                        </p>
+                        {notification.type === 'challenge' && (
+                          <>
+                            <p className="text-sm font-medium text-yellow-400">
+                              Bet Amount: ${notification.betAmount}
+                            </p>
+                            {isAccepting && notification.challengeId === activeChallenge ? (
+                              <Progress value={acceptProgress} className="w-full mt-2" />
+                            ) : (
+                              <div className="flex space-x-2 mt-2">
+                                <Button 
+                                  size="small" 
+                                  onClick={() => handleAcceptChallenge(notification.challengeId)}
+                                  className={`bg-green-500 hover:bg-green-600 text-white ${balance < notification.betAmount ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                  disabled={balance < notification.betAmount}
+                                >
+                                  Accept
+                                </Button>
+                                <Button 
+                                  size="small" 
+                                  onClick={() => handleDeclineChallenge(notification.challengeId)}
+                                  className="bg-red-500 hover:bg-red-600 text-white"
+                                >
+                                  Decline
+                                </Button>
+                              </div>
+                            )}
+                          </>
+                        )}
                       </div>
-                    ))}
-                  </div>
-                </ScrollArea>
+                    </div>
+                  ))}
+                </AnimatedList>
               </CardContent>
             </Card>
           </BoxReveal>
