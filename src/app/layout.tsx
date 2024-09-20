@@ -20,43 +20,33 @@ const geistMono = localFont({
 });
 
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://playsstakes.com';
-const timestamp = Date.now(); // For cache busting
+const timestamp = Date.now();
 
 export const metadata: Metadata = {
-  title: "Play$Stake$",
-  description: "Play$Stakes - Your ultimate gaming and staking platform",
-  metadataBase: new URL(baseUrl),
+  title: "Play$Stakes - Ultimate Gaming & Staking Platform",
+  description: "Join Play$Stakes for an exciting gaming and staking experience. The ultimate platform combining gaming and cryptocurrency staking.",
   openGraph: {
-    title: "Play$Stake$",
-    description: "Play$Stakes - Your ultimate gaming and staking platform",
+    title: "Play$Stakes - Ultimate Gaming & Staking",
+    description: "Join Play$Stakes for an exciting gaming and staking experience. The ultimate platform combining gaming and cryptocurrency staking.",
+    url: 'https://playsstakes.com',
+    siteName: 'Play$Stakes',
     images: [
       {
-        url: `/images/og-image.jpg?v=${timestamp}`,
+        url: `${baseUrl}/images/og-image.jpg?v=${timestamp}`,
         width: 1200,
-        height: 628,
-        alt: 'Play$Stakes Preview Image',
+        height: 630,
       },
     ],
-    url: '/',
-    siteName: 'Play$Stakes',
     locale: 'en_US',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: "Play$Stake$",
-    description: "Play$Stakes - Your ultimate gaming and staking platform",
-    images: [{
-      url: `/images/twitter-image.jpg?v=${timestamp}`,
-      width: 1200,
-      height: 630,
-      alt: 'Play$Stakes Preview Image',
-    }],
-    creator: '@eneffti',
     site: '@eneffti',
-  },
-  other: {
-    'fb:app_id': '1466150140708234',
+    creator: '@eneffti',
+    title: "Play$Stakes - Ultimate Gaming & Staking",
+    description: "Join Play$Stakes for an exciting gaming and staking experience. The ultimate platform combining gaming and cryptocurrency staking.",
+    images: [`${baseUrl}/images/twitter-card.png?v=${timestamp}`],
   },
 };
 
@@ -66,26 +56,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
-      <head>
-        {/* Explicit meta tags */}
-        <meta property="og:title" content="Play$Stake$" />
-        <meta property="og:description" content="Play$Stakes - Your ultimate gaming and staking platform" />
-        <meta property="og:image" content={`${baseUrl}/images/og-image.jpg`} />
-        <meta property="og:url" content={baseUrl} />
-        <meta property="og:type" content="website" />
-        <meta property="og:site_name" content="Play$Stakes" />
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:site" content="@eneffti" />
-        <meta name="twitter:creator" content="@eneffti" />
-        <meta name="twitter:title" content="Play$Stake$" />
-        <meta name="twitter:description" content="Play$Stakes - Your ultimate gaming and staking platform" />
-        <meta name="twitter:image" content={`${baseUrl}/images/twitter-image.jpg?v=${timestamp}`} />
-        <meta name="twitter:image:width" content="1200" />
-        <meta name="twitter:image:height" content="630" />
-        <meta name="twitter:image:alt" content="Play$Stakes Preview Image" />
-      </head>
-      <body>
+    <html lang="en">
+      <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <Toaster position="top-center" reverseOrder={false} />
         <ClientProviders>
           <FirebaseInitializer />
