@@ -39,7 +39,7 @@ export const metadata: Metadata = {
     title: "Play$Stake$",
     description: "Play$Stakes - Your ultimate gaming and staking platform",
     images: ['https://playsstakes.com/images/twitter-image.jpg'],
-    creator: '@playstakes',
+    creator: '@eneffti',
   },
 };
 

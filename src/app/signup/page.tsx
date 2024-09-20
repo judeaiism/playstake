@@ -15,10 +15,7 @@ import AnimatedGridPattern from '@/components/magicui/animated-grid-pattern'
 import { createUserWithEmailAndPassword } from 'firebase/auth'
 import { doc, setDoc } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { auth, storage } from '@/lib/firebase/firebase'
-import { deriveChildAddress } from '@/lib/hdWallet';
-import { getDocs, collection, QuerySnapshot } from 'firebase/firestore';
-import { db } from '@/lib/firebase/firebase'; // Ensure this path is correct for your project structure
+import { auth, storage, db } from '@/lib/firebase/firebase'
 
 export default function SignUpPage() {
   const [username, setUsername] = useState('')
@@ -85,9 +82,6 @@ export default function SignUpPage() {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password)
       const user = userCredential.user
 
-      // Create Ethereum wallet
-      const walletAddress = '0x' + Array(40).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join('');
-
       let avatarUrl = null
       if (avatar) {
         try {
@@ -101,17 +95,12 @@ export default function SignUpPage() {
         }
       }
 
-      // Save user data to Firestore with wallet address and initial balance
-      const userCount = await getDocs(collection(db, 'users')).then(snap => snap.size);
-      const derivedAddress = await deriveChildAddress(userCount);
-
+      // Save user data to Firestore without wallet address
       await setDoc(doc(db, 'users', user.uid), {
         username,
         email,
         psnName,
         avatarUrl,
-        walletAddress: derivedAddress,
-        balance: 0, // Initial balance is always 0
         age,
         createdAt: new Date().toISOString(),
       })

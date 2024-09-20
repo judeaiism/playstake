@@ -58,6 +58,7 @@ import { useBalance } from '@/hooks/useBalance';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { AnimatedList } from "@/components/magicui/animated-list"
 import { TvIcon } from 'lucide-react'
+import { Loader2 } from "lucide-react" // Import a loading icon
 
 const profileFormSchema = z.object({
   username: z.string().min(2, {
@@ -100,6 +101,13 @@ type UserData = {
   createdAt: string;
   // Add other necessary properties if needed
 }
+
+// Add this simple loading component
+const LoadingComponent = () => (
+  <div className="flex justify-center items-center h-screen">
+    <Loader2 className="h-8 w-8 animate-spin text-yellow-400" />
+  </div>
+)
 
 export default function Dashboard() {
   const { user, loading: authLoading } = useAuth()
@@ -729,62 +737,62 @@ export default function Dashboard() {
   }, [user]);
 
   useEffect(() => {
-    if (userData) {
-      // Calculate total matches
-      setTotalMatches(userData.recentMatches.length)
-
-      // Calculate win rate
-      const wins = userData.recentMatches.filter(match => 
-        (match.winner === 'challenger' && match.challenger.username === userData.username) ||
-        (match.winner === 'opponent' && match.opponent.username === userData.username)
-      ).length
-      const calculatedWinRate = userData.recentMatches.length > 0 ? (wins / userData.recentMatches.length) * 100 : 0
-      setWinRate(calculatedWinRate)
-
-      // Calculate rank
-      const calculateRank = async () => {
-        const usersRef = collection(db, 'users')
-        const usersSnapshot = await getDocs(usersRef)
-        const usersData = usersSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...(doc.data() as Partial<UserData>)
-        }))
-
-        // Calculate win rates for all users
-        const userWinRates = usersData.map(user => {
-          const userMatches: Match[] = user.recentMatches || []
-          const userWins = userMatches.filter(match =>
-            (match.winner === 'challenger' && match.challenger.username === user.username) ||
-            (match.winner === 'opponent' && match.opponent.username === user.username)
-          ).length
-          const winRate = userMatches.length > 0 ? (userWins / userMatches.length) * 100 : 0
-          return {
-            id: user.id,
-            winRate: winRate
-          }
-        })
-
-        // Sort users by win rate in descending order
-        userWinRates.sort((a, b) => b.winRate - a.winRate)
-
-        // Find the current user's rank
-        const userRank = userWinRates.findIndex(user => user.id === userData.id) + 1
-        setRank(userRank)
-      }
-
-      calculateRank()
+    if (!userData) {
+      // Instead of returning JSX, we'll set a loading state
+      setLoading(true)
+      return
     }
+
+    // Calculate total matches
+    setTotalMatches(userData.recentMatches.length)
+
+    // Calculate win rate
+    const wins = userData?.recentMatches?.filter(match =>
+      (match.winner === 'challenger' && match.challenger.username === userData.username) ||
+      (match.winner === 'opponent' && match.opponent.username === userData.username)
+    ).length || 0;
+    const calculatedWinRate = userData?.recentMatches?.length > 0
+      ? (wins / userData.recentMatches.length) * 100
+      : 0;
+    setWinRate(calculatedWinRate)
+
+    // Calculate rank
+    const calculateRank = async () => {
+      const usersRef = collection(db, 'users')
+      const usersSnapshot = await getDocs(usersRef)
+      const usersData = usersSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...(doc.data() as Partial<UserData>)
+      }))
+
+      // Calculate win rates for all users
+      const userWinRates = usersData.map(user => {
+        const userMatches: Match[] = user.recentMatches || []
+        const userWins = userMatches.filter(match =>
+          (match.winner === 'challenger' && match.challenger.username === user.username) ||
+          (match.winner === 'opponent' && match.opponent.username === user.username)
+        ).length
+        const winRate = userMatches.length > 0 ? (userWins / userMatches.length) * 100 : 0
+        return {
+          id: user.id,
+          winRate: winRate
+        }
+      })
+
+      // Sort users by win rate in descending order
+      userWinRates.sort((a, b) => b.winRate - a.winRate)
+
+      // Find the current user's rank
+      const userRank = userWinRates.findIndex(user => user.id === userData.id) + 1
+      setRank(userRank)
+    }
+
+    calculateRank()
+    setLoading(false)
   }, [userData])
 
   if (authLoading || loading) {
-    return (
-      <div className="flex flex-col justify-center items-center h-screen bg-gradient-to-br from-purple-700 to-red-700">
-        <div className="w-64 mb-4">
-          <Progress value={progress} className="h-2 bg-yellow-200" />
-        </div>
-        <div className="text-white text-lg">Loading your dashboard...</div>
-      </div>
-    )
+    return <LoadingComponent />
   }
 
   if (!user || !userData) {
