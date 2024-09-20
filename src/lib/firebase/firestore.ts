@@ -1,9 +1,11 @@
-import { getFirestore, doc, getDoc, setDoc, updateDoc, runTransaction, increment } from 'firebase/firestore';
-import { app } from './firebase'; // Ensure this file exists and initializes Firebase
-
-const db = getFirestore(app);
+import { auth, db } from './firebase';
+import { doc, getDoc, setDoc, updateDoc, runTransaction, increment } from 'firebase/firestore';
+import { getCurrentUser } from './auth';
 
 export async function getUserBalance(userId: string): Promise<number> {
+  const user = await getCurrentUser();
+  if (!user) throw new Error('User not authenticated');
+
   const userRef = doc(db, 'users', userId);
   const userSnap = await getDoc(userRef);
   if (userSnap.exists()) {
@@ -13,11 +15,17 @@ export async function getUserBalance(userId: string): Promise<number> {
 }
 
 export async function createOrder(orderId: string, userId: string, amount: number) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error('User not authenticated');
+
   const orderRef = doc(db, 'orders', orderId);
   await setDoc(orderRef, { userId, amount, status: 'pending' });
 }
 
 export async function updateUserBalance(orderId: string, amount: number) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error('User not authenticated');
+
   const orderRef = doc(db, 'orders', orderId);
   const orderDoc = await getDoc(orderRef);
 
@@ -26,6 +34,10 @@ export async function updateUserBalance(orderId: string, amount: number) {
   }
 
   const userId = orderDoc.data().userId;
+  if (user.uid !== userId) {
+    throw new Error('Unauthorized to update this order');
+  }
+
   const userRef = doc(db, 'users', userId);
 
   await updateDoc(userRef, {

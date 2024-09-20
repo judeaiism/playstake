@@ -62,6 +62,7 @@ export default function LoginPage() {
               value={email}
               onChange={(e: ChangeEvent<HTMLInputElement>) => handleInputChange(e, setEmail)}
               required
+              autoComplete="username"
               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500 p-2"
             />
           </div>
@@ -73,6 +74,7 @@ export default function LoginPage() {
               value={password}
               onChange={(e: ChangeEvent<HTMLInputElement>) => handleInputChange(e, setPassword)}
               required
+              autoComplete="current-password"
               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500 p-2"
             />
           </div>

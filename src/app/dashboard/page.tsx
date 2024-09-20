@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { doc, getDoc, setDoc, updateDoc, DocumentData, collection, getDocs, query, where, onSnapshot, addDoc, or, Query, QuerySnapshot, arrayUnion, orderBy, increment } from 'firebase/firestore'
-import { db, auth, firebaseConfig } from '@/lib/firebase/firebase'
+import { db, auth } from '@/lib/firebase/firebase'
 import { Progress } from "@/components/ui/progress"
 import BoxReveal from "@/components/magicui/box-reveal"
 import { Button } from "@/components/ui/button"
@@ -178,37 +178,36 @@ export default function Dashboard() {
     console.log('Auth loading:', authLoading)
     console.log('User:', user)
 
-    if (authLoading) return
+    if (authLoading) return;
 
     if (!user) {
-      console.log('No user, redirecting to login')
-      router.push('/login')
-      return
+      console.log('No user, redirecting to login');
+      router.push('/login');
+      return;
     }
 
-    console.log('Setting up challenge listeners for user:', user.uid)
+    console.log('Setting up challenge listeners for user:', user.uid);
 
     const challengesQuery = query(
       collection(db, 'challenges'),
       where('status', 'in', ['pending', 'accepted']),
       where('challengerId', '==', user.uid)
-    )
+    );
 
     const unsubscribe = onSnapshot(challengesQuery, (snapshot) => {
-      console.log('Challenges snapshot received')
+      console.log('Challenges snapshot received');
       snapshot.docChanges().forEach((change) => {
         const challenge = { id: change.doc.id, ...change.doc.data() } as {
           id: string;
           status: string;
-          // Add other properties that you expect in a challenge
-        }
-        console.log('Challenge change:', change.type, challenge)
+        };
+        console.log('Challenge change:', change.type, challenge);
 
         if (challenge.status === 'accepted') {
-          console.log('Accepted challenge detected, navigating to game page')
-          router.push(`/game/${challenge.id}`)
+          console.log('Accepted challenge detected, navigating to game page');
+          router.push(`/game/${challenge.id}`);
         }
-      })
+      });
 
       const updatedChallenges = snapshot.docs
         .filter(doc => doc.data().status === 'pending')
@@ -217,19 +216,23 @@ export default function Dashboard() {
           challengerName: doc.data().challengerName, 
           betAmount: doc.data().betAmount,
           status: doc.data().status
-        }))
-      console.log('Updated pending challenges:', updatedChallenges)
-      setChallenges(updatedChallenges)
+        }));
+      console.log('Updated pending challenges:', updatedChallenges);
+      setChallenges(updatedChallenges);
     }, (error) => {
-      console.error('Error in challenges listener:', error)
-      // Handle the error (e.g., show an error message to the user)
-    })
+      console.error('Error in challenges listener:', error);
+      if (error instanceof Error) {
+        toast.error(`Unable to fetch challenges: ${error.message}`);
+      } else {
+        toast.error('Unable to fetch challenges: An unknown error occurred');
+      }
+    });
 
     return () => {
-      unsubscribe()
-      console.log('Challenge listener unsubscribed')
-    }
-  }, [user, authLoading, router])
+      unsubscribe();
+      console.log('Challenge listener unsubscribed');
+    };
+  }, [user, authLoading, router]);
 
   useEffect(() => {
     if (!authLoading) {
@@ -303,24 +306,28 @@ export default function Dashboard() {
 
   useEffect(() => {
     const fetchAllUsers = async () => {
-      setIsLoadingUsers(true)
+      setIsLoadingUsers(true);
       try {
-        const usersCollection = collection(db, 'users')
-        const userSnapshot = await getDocs(usersCollection)
+        const usersCollection = collection(db, 'users');
+        const userSnapshot = await getDocs(usersCollection);
         const userList = userSnapshot.docs.map(doc => ({
           id: doc.id,
           username: doc.data().username,
           avatarUrl: doc.data().avatarUrl,
           isOnline: doc.data().isOnline
-        }))
-        setAllUsers(userList)
+        }));
+        setAllUsers(userList);
       } catch (error) {
-        console.error('Error fetching users:', error)
-        // You might want to set an error state here and display it to the user
+        console.error('Error fetching users:', error);
+        if (error instanceof Error) {
+          toast.error(`Unable to fetch users: ${error.message}`);
+        } else {
+          toast.error('Unable to fetch users: An unknown error occurred');
+        }
       } finally {
-        setIsLoadingUsers(false)
+        setIsLoadingUsers(false);
       }
-    }
+    };
 
     fetchAllUsers()
   }, [])
@@ -350,27 +357,41 @@ export default function Dashboard() {
     console.log('Fetching notifications for user:', user.uid);
 
     const fetchNotifications = async () => {
-      const notificationsRef = collection(db, 'notifications');
-      const q = query(
-        notificationsRef,
-        where('userId', '==', user.uid),
-        where('read', '==', false),
-        orderBy('createdAt', 'desc')
-      );
+      try {
+        const notificationsRef = collection(db, 'notifications');
+        const q = query(
+          notificationsRef,
+          where('userId', '==', user.uid),
+          where('read', '==', false),
+          orderBy('createdAt', 'desc')
+        );
 
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        console.log('Notification snapshot received');
-        const newNotifications = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        console.log('New notifications:', newNotifications);
-        setNotifications(newNotifications);
-      }, (error) => {
-        console.error('Error in notification listener:', error);
-      });
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+          console.log('Notification snapshot received');
+          const newNotifications = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+          console.log('New notifications:', newNotifications);
+          setNotifications(newNotifications);
+        }, (error) => {
+          console.error('Error in notification listener:', error);
+          if (error instanceof Error) {
+            toast.error(`Unable to fetch notifications: ${error.message}`);
+          } else {
+            toast.error('Unable to fetch notifications: An unknown error occurred');
+          }
+        });
 
-      return () => unsubscribe();
+        return () => unsubscribe();
+      } catch (error) {
+        console.error('Error setting up notification listener:', error);
+        if (error instanceof Error) {
+          toast.error(`Unable to set up notification listener: ${error.message}`);
+        } else {
+          toast.error('Unable to set up notification listener: An unknown error occurred');
+        }
+      }
     };
 
     fetchNotifications();
@@ -738,20 +759,19 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!userData) {
-      // Instead of returning JSX, we'll set a loading state
       setLoading(true)
       return
     }
 
     // Calculate total matches
-    setTotalMatches(userData.recentMatches.length)
+    setTotalMatches(userData.recentMatches?.length || 0)
 
     // Calculate win rate
-    const wins = userData?.recentMatches?.filter(match =>
+    const wins = userData.recentMatches?.filter(match =>
       (match.winner === 'challenger' && match.challenger.username === userData.username) ||
       (match.winner === 'opponent' && match.opponent.username === userData.username)
     ).length || 0;
-    const calculatedWinRate = userData?.recentMatches?.length > 0
+    const calculatedWinRate = userData.recentMatches?.length > 0
       ? (wins / userData.recentMatches.length) * 100
       : 0;
     setWinRate(calculatedWinRate)

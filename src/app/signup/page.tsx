@@ -91,16 +91,17 @@ export default function SignUpPage() {
           avatarUrl = await getDownloadURL(avatarRef)
         } catch (avatarError) {
           console.error('Failed to upload avatar:', avatarError)
-          setError('Failed to upload avatar, but account created successfully.')
+          setError('Failed to upload avatar, but account created successfully. You can update your avatar later.')
+          // Continue with user creation even if avatar upload fails
         }
       }
 
-      // Save user data to Firestore without wallet address
+      // Save user data to Firestore
       await setDoc(doc(db, 'users', user.uid), {
         username,
         email,
         psnName,
-        avatarUrl,
+        avatarUrl, // This might be null if upload failed
         age,
         createdAt: new Date().toISOString(),
       })
@@ -178,17 +179,17 @@ export default function SignUpPage() {
             />
             <form onSubmit={handleSubmit} className="space-y-3">
               <div className="flex flex-col items-center mb-3">
-                <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden mb-2">
+                <div className="w-24 h-24 rounded-full bg-gray-200 overflow-hidden mb-2 relative">
                   {avatar ? (
                     <Image 
                       src={URL.createObjectURL(avatar)} 
                       alt="Profile" 
-                      width={96} 
-                      height={96} 
-                      className="object-cover" 
+                      fill
+                      className="object-cover"
+                      sizes="96px"
                     />
                   ) : (
-                    <svg className="w-12 h-12 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                    <svg className="w-full h-full text-gray-400" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                     </svg>
                   )}
@@ -218,6 +219,7 @@ export default function SignUpPage() {
                   value={username}
                   onChange={(e: ChangeEvent<HTMLInputElement>) => setUsername(e.target.value)}
                   required
+                  autoComplete="username"
                 />
               </div>
               <div>
@@ -250,6 +252,7 @@ export default function SignUpPage() {
                   value={password}
                   onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
                   required
+                  autoComplete="new-password"
                 />
               </div>
               <div>
@@ -260,6 +263,7 @@ export default function SignUpPage() {
                   value={confirmPassword}
                   onChange={(e: ChangeEvent<HTMLInputElement>) => setConfirmPassword(e.target.value)}
                   required
+                  autoComplete="new-password"
                 />
               </div>
               <div>
