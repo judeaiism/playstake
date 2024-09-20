@@ -17,7 +17,30 @@ const geistMono = localFont({
 
 export const metadata: Metadata = {
   title: "Play$Stake$",
-  description: "Play$Stakes",
+  description: "Play$Stakes - Your ultimate gaming and staking platform",
+  openGraph: {
+    title: "Play$Stake$",
+    description: "Play$Stakes - Your ultimate gaming and staking platform",
+    images: [
+      {
+        url: 'https://playsstakes.com/images/og-image.jpg',
+        width: 1200,
+        height: 630,
+        alt: 'Play$Stakes Preview Image',
+      },
+    ],
+    url: 'https://playsstakes.com',
+    siteName: 'Play$Stakes',
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: "Play$Stake$",
+    description: "Play$Stakes - Your ultimate gaming and staking platform",
+    images: ['https://playsstakes.com/images/twitter-image.jpg'],
+    creator: '@playstakes',
+  },
 };
 
 export default function RootLayout({
