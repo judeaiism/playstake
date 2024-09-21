@@ -1,21 +1,18 @@
 'use client'
 
-import { useState, useRef, ChangeEvent, FormEvent, useEffect } from 'react'
+import { useState, ChangeEvent, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import AvatarCircles from '@/components/magicui/avatar-circles'
-import { AnimatedSubscribeButton } from '@/components/magicui/animated-subscribe-button'
 import SparklesText from '@/components/magicui/sparkles-text'
 import Iphone15Pro from '@/components/magicui/iphone-15-pro'
 import AnimatedGridPattern from '@/components/magicui/animated-grid-pattern'
 import { createUserWithEmailAndPassword } from 'firebase/auth'
 import { doc, setDoc } from 'firebase/firestore'
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { auth, storage, db } from '@/lib/firebase/firebase'
+import { auth, db } from '@/lib/firebase/firebase'
 
 export default function SignUpPage() {
   const [username, setUsername] = useState('')
@@ -23,22 +20,12 @@ export default function SignUpPage() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [psnName, setPsnName] = useState('')
-  const [avatar, setAvatar] = useState<File | null>(null)
   const [age, setAge] = useState<number | null>(null)
   const [error, setError] = useState('')
   const [isAgeConfirmed, setIsAgeConfirmed] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
-
-  useEffect(() => {
-    return () => {
-      if (avatar) {
-        URL.revokeObjectURL(URL.createObjectURL(avatar))
-      }
-    }
-  }, [avatar])
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -82,26 +69,12 @@ export default function SignUpPage() {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password)
       const user = userCredential.user
 
-      let avatarUrl = null
-      if (avatar) {
-        try {
-          const avatarRef = ref(storage, `avatars/${user.uid}/profile.jpg`)
-          const avatarBlob = await avatar.arrayBuffer().then(buffer => new Blob([buffer]))
-          await uploadBytes(avatarRef, avatarBlob)
-          avatarUrl = await getDownloadURL(avatarRef)
-        } catch (avatarError) {
-          console.error('Failed to upload avatar:', avatarError)
-          setError('Failed to upload avatar, but account created successfully. You can update your avatar later.')
-          // Continue with user creation even if avatar upload fails
-        }
-      }
-
       // Save user data to Firestore
       await setDoc(doc(db, 'users', user.uid), {
         username,
         email,
         psnName,
-        avatarUrl, // This might be null if upload failed
+        avatarUrl: '/images/default-avatar.jpg', // Set a default avatar URL
         age,
         createdAt: new Date().toISOString(),
       })
@@ -124,27 +97,6 @@ export default function SignUpPage() {
       }
     } finally {
       setIsLoading(false)
-    }
-  }
-
-  const handleAvatarUpload = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
-        setError('Avatar file size should be less than 5MB')
-        return
-      }
-      setAvatar(file) // Set the File object directly
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        // You might want to store the data URL separately if needed for preview
-        // setAvatarPreview(reader.result as string)
-      }
-      reader.onerror = () => {
-        setError('Failed to load avatar image')
-        setAvatar(null)
-      }
-      reader.readAsDataURL(file)
     }
   }
 
@@ -178,39 +130,6 @@ export default function SignUpPage() {
               className="text-2xl font-bold text-center text-purple-900 mb-4"
             />
             <form onSubmit={handleSubmit} className="space-y-3">
-              <div className="flex flex-col items-center mb-3">
-                <div className="w-24 h-24 rounded-full bg-gray-200 overflow-hidden mb-2 relative">
-                  {avatar ? (
-                    <Image 
-                      src={URL.createObjectURL(avatar)} 
-                      alt="Profile" 
-                      fill
-                      className="object-cover"
-                      sizes="96px"
-                    />
-                  ) : (
-                    <svg className="w-full h-full text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                </div>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="text-xs"
-                >
-                  {avatar ? 'Change Avatar' : 'Upload Avatar'}
-                </Button>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleAvatarUpload}
-                  accept="image/*"
-                  className="hidden"
-                />
-                {avatar && <p className="text-xs text-green-500 mt-1">Avatar selected</p>}
-              </div>
               <div>
                 <Label htmlFor="username">Username</Label>
                 <Input
