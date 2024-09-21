@@ -384,6 +384,7 @@ export default function GamePage({ params }: { params: { challengeId: string } }
                 <h3 className="font-semibold mb-2">How to Play:</h3>
                 <ol className="list-decimal list-inside space-y-1">
                   <li>Both players agree on the bet amount.</li>
+                  <li>Search & Add your opponent on PSN.</li>
                   <li>The game begins when both players are ready.</li>
                   <li>Play your best and follow the game rules.</li>
                   <li>Click on your avatar to increment your score.</li>
